@@ -1,0 +1,388 @@
+# word count [Display]   — modern vocabulary the 2009-era frequency list lacks: tech, brands, chat. Counts are estimates.
+api 4000000 API
+apis 4000000 APIs
+json 4000000 JSON
+yaml 4000000 YAML
+html 4000000 HTML
+css 4000000 CSS
+sql 4000000 SQL
+ssh 4000000 SSH
+url 4000000 URL
+urls 4000000 URLs
+http 4000000 HTTP
+https 4000000 HTTPS
+ui 4000000 UI
+ux 4000000 UX
+cpu 4000000 CPU
+gpu 4000000 GPU
+ram 4000000 RAM
+ssd 4000000 SSD
+usb 4000000 USB
+hdmi 4000000 HDMI
+vpn 4000000 VPN
+dns 4000000 DNS
+ip 4000000 IP
+sdk 4000000 SDK
+ide 4000000 IDE
+cli 4000000 CLI
+ci 4000000 CI
+llm 4000000 LLM
+llms 4000000 LLMs
+gpt 4000000 GPT
+ai 4000000 AI
+ml 4000000 ML
+saas 4000000 SaaS
+faq 4000000 FAQ
+pdf 4000000 PDF
+csv 4000000 CSV
+png 4000000 PNG
+jpg 4000000 JPG
+gif 4000000 GIF
+svg 4000000 SVG
+async 4000000
+await 4000000
+param 4000000
+params 4000000
+config 4000000
+configs 4000000
+repo 4000000
+repos 4000000
+const 4000000
+bool 4000000
+enum 4000000
+stdin 4000000
+stdout 4000000
+localhost 4000000
+dataset 4000000
+datasets 4000000
+frontend 4000000
+backend 4000000
+fullstack 4000000
+middleware 4000000
+webhook 4000000
+webhooks 4000000
+endpoint 4000000
+endpoints 4000000
+auth 4000000
+oauth 4000000 OAuth
+login 4000000
+logout 4000000
+signup 4000000
+username 4000000
+usernames 4000000
+passcode 4000000
+regex 4000000
+refactor 4000000
+refactored 4000000
+refactoring 4000000
+codebase 4000000
+changelog 4000000
+readme 4000000 README
+dev 4000000
+devs 4000000
+devops 4000000 DevOps
+kubernetes 4000000 Kubernetes
+docker 4000000 Docker
+dockerfile 4000000 Dockerfile
+nginx 4000000
+redis 4000000 Redis
+postgres 4000000 Postgres
+mysql 4000000 MySQL
+sqlite 4000000 SQLite
+mongodb 4000000 MongoDB
+graphql 4000000 GraphQL
+webpack 4000000
+tailwind 4000000 Tailwind
+vercel 4000000 Vercel
+supabase 4000000 Supabase
+firebase 4000000 Firebase
+figma 4000000 Figma
+nvidia 4000000 NVIDIA
+pytorch 4000000 PyTorch
+numpy 4000000 NumPy
+tensorflow 4000000 TensorFlow
+typescript 4000000 TypeScript
+javascript 4000000 JavaScript
+golang 4000000 Golang
+nodejs 4000000 Node.js
+swiftui 4000000 SwiftUI
+xcode 4000000 Xcode
+homebrew 4000000 Homebrew
+linux 4000000 Linux
+ubuntu 4000000 Ubuntu
+macos 4000000 macOS
+ios 4000000 iOS
+ipados 4000000 iPadOS
+watchos 4000000 watchOS
+android 4000000 Android
+github 4000000 GitHub
+gitlab 4000000 GitLab
+bitbucket 4000000 Bitbucket
+openai 4000000 OpenAI
+anthropic 4000000 Anthropic
+chatgpt 4000000 ChatGPT
+claude 4000000 Claude
+copilot 4000000 Copilot
+chatbot 4000000
+chatbots 4000000
+blockchain 4000000
+ethereum 4000000 Ethereum
+bitcoin 4000000 Bitcoin
+crypto 4000000
+fintech 4000000
+startup 4000000
+startups 4000000
+serverless 4000000
+microservice 4000000
+microservices 4000000
+repo's 4000000
+deploy 4000000
+deployed 4000000
+deploys 4000000
+deploying 4000000
+deployment 4000000
+rollback 4000000
+uptime 4000000
+downtime 4000000
+dropdown 4000000
+tooltip 4000000
+checkbox 4000000
+navbar 4000000
+sidebar 4000000
+popup 4000000
+popups 4000000
+fullscreen 4000000
+screenshot 4000000
+screenshots 4000000
+screencast 4000000
+touchscreen 4000000
+trackpad 4000000
+smartphone 4000000
+smartphones 4000000
+smartwatch 4000000
+bluetooth 4000000 Bluetooth
+wifi 4000000 Wi-Fi
+hotspot 4000000
+hotspots 4000000
+airdrop 4000000 AirDrop
+airpods 4000000 AirPods
+iphone 4000000 iPhone
+iphones 4000000 iPhones
+ipad 4000000 iPad
+ipads 4000000 iPads
+macbook 4000000 MacBook
+imac 4000000 iMac
+imessage 4000000 iMessage
+facetime 4000000 FaceTime
+icloud 4000000 iCloud
+siri 4000000 Siri
+alexa 4000000 Alexa
+spotify 4000000 Spotify
+netflix 4000000 Netflix
+hulu 4000000 Hulu
+youtube 4000000 YouTube
+tiktok 4000000 TikTok
+instagram 4000000 Instagram
+snapchat 4000000 Snapchat
+whatsapp 4000000 WhatsApp
+telegram 4000000
+discord 4000000
+slack 4000000
+zoom 4000000
+notion 4000000
+jira 4000000 Jira
+linkedin 4000000 LinkedIn
+reddit 4000000 Reddit
+twitch 4000000
+pinterest 4000000 Pinterest
+venmo 4000000 Venmo
+paypal 4000000 PayPal
+uber 4000000 Uber
+lyft 4000000 Lyft
+airbnb 4000000 Airbnb
+doordash 4000000 DoorDash
+instacart 4000000 Instacart
+tesla 4000000 Tesla
+costco 4000000 Costco
+ikea 4000000 IKEA
+podcast 4000000
+podcasts 4000000
+livestream 4000000
+livestreams 4000000
+vlog 4000000
+vlogs 4000000
+blog 4000000
+blogs 4000000
+tweet 4000000
+tweets 4000000
+retweet 4000000
+retweeted 4000000
+hashtag 4000000
+hashtags 4000000
+unfollow 4000000
+unfollowed 4000000
+unfriend 4000000
+dm 4000000
+dms 4000000
+emoji 4000000
+emojis 4000000
+meme 4000000
+memes 4000000
+selfie 4000000
+selfies 4000000
+gifs 4000000
+inbox 4000000
+voicemail 4000000
+autocorrect 4000000
+autocomplete 4000000
+online 4000000
+offline 4000000
+upload 4000000
+uploads 4000000
+download 4000000
+downloads 4000000
+email 4000000
+emails 4000000
+playlist 4000000
+playlists 4000000
+influencer 4000000
+influencers 4000000
+freelancer 4000000
+freelancers 4000000
+coworking 4000000
+onboarding 4000000
+offboarding 4000000
+standup 4000000
+standups 4000000
+backlog 4000000
+roadmap 4000000
+timeline 4000000
+workflow 4000000
+workflows 4000000
+dashboard 4000000
+dashboards 4000000
+spreadsheet 4000000
+spreadsheets 4000000
+signups 4000000
+walkthrough 4000000
+takeaway 4000000
+takeaways 4000000
+ok 6000000
+okay 6000000
+yeah 6000000
+yep 6000000
+yup 6000000
+nope 6000000
+nah 6000000
+hmm 6000000
+hmmm 6000000
+ugh 6000000
+oof 6000000
+meh 6000000
+yay 6000000
+wow 6000000
+whoa 6000000
+lol 6000000
+lmao 6000000
+lmfao 6000000
+rofl 6000000
+omg 6000000
+omfg 6000000
+wtf 6000000
+wth 6000000
+idk 6000000
+idc 6000000
+ikr 6000000
+imo 6000000
+imho 6000000
+tbh 6000000
+tbf 6000000
+btw 6000000
+fyi 6000000
+asap 6000000
+rn 6000000
+atm 6000000
+brb 6000000
+ttyl 6000000
+gtg 6000000
+nvm 6000000
+jk 6000000
+thx 6000000
+ty 6000000
+tysm 6000000
+np 6000000
+pls 6000000
+plz 6000000
+irl 6000000
+aka 6000000
+eta 6000000
+tldr 6000000
+fomo 6000000
+yolo 6000000
+gonna 6000000
+wanna 6000000
+gotta 6000000
+kinda 6000000
+sorta 6000000
+dunno 6000000
+lemme 6000000
+gimme 6000000
+outta 6000000
+cuz 6000000
+tho 6000000
+thru 6000000
+til 6000000
+ya 6000000
+yo 6000000
+bro 6000000
+bruh 6000000
+dude 6000000
+fam 6000000
+bestie 6000000
+bae 6000000
+vibe 6000000
+vibes 6000000
+lowkey 6000000
+highkey 6000000
+sus 6000000
+yeet 6000000
+slay 6000000
+cringe 6000000
+simp 6000000
+stan 6000000
+woke 6000000
+goat 6000000
+adulting 6000000
+hangry 6000000
+staycation 6000000
+ghosted 6000000
+ghosting 6000000
+binge 6000000
+binged 6000000
+chill 6000000
+chilled 6000000
+legit 6000000
+hella 6000000
+salty 6000000
+savage 6000000
+shook 6000000
+extra 6000000
+basic 6000000
+lit 6000000
+fire 6000000
+mood 6000000
+same 6000000
+oop 6000000
+periodt 6000000
+haha 6000000
+hahaha 6000000
+hehe 6000000
+lolol 6000000
+aww 6000000
+awww 6000000
+ooh 6000000
+yikes 6000000
+welp 6000000
+duh 6000000
+shh 6000000
+psst 6000000

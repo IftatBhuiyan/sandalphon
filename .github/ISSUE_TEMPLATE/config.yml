@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem
+    url: https://github.com/IftatBhuiyan/sandalphon/security/advisories/new
+    about: Report anything that could expose what a person types privately, not as a public issue.

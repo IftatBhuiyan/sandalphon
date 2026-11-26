@@ -1,0 +1,22 @@
+name: Bug report
+description: Something in the app is broken (not a correction-quality problem)
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: App it happened in
+  - type: input
+    id: version
+    attributes:
+      label: Sandalphon and macOS versions
+      placeholder: Sandalphon 1.0.0, macOS 15.2
+    validations:
+      required: true

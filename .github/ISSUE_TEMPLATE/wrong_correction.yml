@@ -1,0 +1,36 @@
+name: Wrong or missed correction
+description: Sandalphon changed something it should not have, or left a typo alone
+labels: [correction]
+body:
+  - type: markdown
+    attributes:
+      value: Please do not paste anything private. A made-up sentence that shows the same problem is ideal.
+  - type: input
+    id: typed
+    attributes:
+      label: What you typed
+      placeholder: i got it form the store
+    validations:
+      required: true
+  - type: input
+    id: got
+    attributes:
+      label: What you ended up with
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: App you were typing in
+      placeholder: Notes, Safari on docs.google.com, Slack
+  - type: input
+    id: version
+    attributes:
+      label: Sandalphon and macOS versions
+      placeholder: Sandalphon 1.0.0, macOS 15.2

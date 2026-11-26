@@ -1,0 +1,30 @@
+# Language data
+
+Everything Sandalphon knows about English lives in this folder. The code is MIT licensed; the data comes
+from the sources below and keeps their terms.
+
+| File | What it is | Source |
+|---|---|---|
+| `unigrams.txt` | 82,765 words with web frequencies | [SymSpell](https://github.com/wolfgarbe/SymSpell) `frequency_dictionary_en_82_765.txt` (MIT), itself built from the Google Books Ngram data and SCOWL |
+| `bigrams.txt` | 242,342 word pairs with web frequencies | SymSpell `frequency_bigramdictionary_en_243_342.txt` (MIT) |
+| `conv_vocab.txt`, `conv2.bin`, `conv3.bin` | word, pair and triple counts from 124 million words of dialogue | counted by `scripts/build_ngrams.py` from the English side of the [OpenSubtitles 2018](https://opus.nlpl.eu/OpenSubtitles-v2018.php) corpus (P. Lison and J. Tiedemann, 2016, *OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV Subtitles*, LREC), thanks to [opensubtitles.org](http://www.opensubtitles.org/). Only counts above a threshold are kept; no subtitle text is included |
+| `display.txt` | which words are written with a capital | derived from `/usr/share/dict/words` and `propernames` (public domain) |
+| `extra.txt`, `modern.txt` | contractions, days, places, tech terms, brands, chat words | written for this project |
+| `misspellings.txt`, `phrases.txt` | well-known misspellings and two-word grammar slips | written for this project |
+
+## Rebuilding the conversational model
+
+```sh
+curl -sL https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2018/mono/en.txt.gz | gunzip -c | head -c 700000000 \
+  | python3 scripts/build_ngrams.py Data /tmp/counts
+python3 scripts/build_model.py /tmp/counts Data
+```
+
+## Adding words
+
+`modern.txt` and `extra.txt` take one entry per line: `word count [Display]`. The count is on the same scale as
+`unigrams.txt` ("the" is 23 billion; a common everyday word is 10 to 100 million). A third column sets how the
+word is written, and makes Sandalphon capitalise it when typed in lowercase.
+
+Other languages are not supported yet. A new language needs its own word, pair and triple counts in these
+formats; see [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).

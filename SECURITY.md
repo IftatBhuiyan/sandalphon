@@ -1,0 +1,32 @@
+# Security
+
+Sandalphon reads every key you type in order to correct it. That makes its security and privacy properties
+the most important thing about it.
+
+## What it does and does not do
+
+- All processing happens on your Mac. What you type is never written to disk and never sent anywhere.
+- The only network request is the update check against this repository's GitHub releases. It can be turned
+  off in Settings, and updates are verified with an EdDSA signature before they are installed.
+- It learns words and short phrases you use often and stores those counts in
+  `~/Library/Application Support/Sandalphon/user.json`, readable only by your account. You can inspect or
+  erase it from Settings › Privacy.
+- Password fields are invisible to it: macOS withholds their keystrokes from every app.
+- It contains no analytics, telemetry or crash reporting.
+
+## Reporting a vulnerability
+
+Please do not open a public issue for a security problem. Use GitHub's
+[private vulnerability reporting](../../security/advisories/new) for this repository. You should get a reply
+within a week. Reports about anything that could expose what a person types are treated as critical.
+
+## Verifying a download
+
+Release builds are signed with a Developer ID certificate and notarized by Apple. You can check a copy with:
+
+```sh
+codesign --verify --deep --strict /Applications/Sandalphon.app
+spctl --assess --type execute -vv /Applications/Sandalphon.app
+```
+
+The app can also be built from source; see the README.

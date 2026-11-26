@@ -1,0 +1,154 @@
+# word count [display]   — patches on top of unigrams.txt (count on the same scale, "the" = 23e9)
+don't 250000000
+i'm 300000000 I'm
+it's 350000000
+can't 120000000
+that's 150000000
+didn't 120000000
+you're 100000000
+i've 80000000 I've
+i'll 90000000 I'll
+i'd 60000000 I'd
+doesn't 70000000
+won't 50000000
+isn't 50000000
+there's 60000000
+he's 80000000
+she's 50000000
+we're 60000000
+they're 50000000
+what's 50000000
+let's 40000000
+wasn't 60000000
+couldn't 40000000
+wouldn't 40000000
+shouldn't 25000000
+haven't 30000000
+hasn't 20000000
+hadn't 20000000
+aren't 25000000
+weren't 20000000
+you'll 40000000
+we'll 40000000
+they'll 25000000
+he'll 20000000
+she'll 15000000
+it'll 15000000
+you've 40000000
+we've 30000000
+they've 20000000
+you'd 25000000
+he'd 20000000
+she'd 15000000
+we'd 15000000
+they'd 15000000
+who's 25000000
+here's 25000000
+where's 12000000
+how's 10000000
+ain't 10000000
+y'all 5000000
+could've 8000000
+would've 8000000
+should've 8000000
+must've 4000000
+that'll 4000000
+who've 2000000
+i I
+ok 60000000
+lol 20000000
+omg 8000000
+idk 6000000
+tbh 4000000
+btw 6000000
+imo 3000000
+nvm 1500000
+thx 2000000
+pls 3000000
+haha 10000000
+hahaha 3000000
+hmm 6000000
+yep 6000000
+nope 5000000
+yay 3000000
+ugh 3000000
+gotta 9000000
+kinda 9000000
+sorta 2000000
+dunno 3000000
+lemme 1500000
+gimme 1500000
+nah 4000000
+bro 6000000
+emoji 3000000
+selfie 2000000
+wifi 7092027 Wi-Fi
+app 60000000
+apps 40000000
+iphone 30000000 iPhone
+ipad 10000000 iPad
+macbook 4000000 MacBook
+ios 8000000 iOS
+macos 4000000 macOS
+youtube 30000000 YouTube
+github 6000000 GitHub
+chatgpt 3000000 ChatGPT
+ai 30000000 AI
+api 20000000 API
+url 20000000 URL
+pdf 30000000 PDF
+usa 30000000 USA
+tv 60000000 TV
+monday 60000000 Monday
+tuesday 50000000 Tuesday
+wednesday 50000000 Wednesday
+thursday 50000000 Thursday
+friday 70000000 Friday
+saturday 60000000 Saturday
+sunday 70000000 Sunday
+january 80000000 January
+february 60000000 February
+april 80000000 April
+june 80000000 June
+july 80000000 July
+august 70000000 August
+september 70000000 September
+october 70000000 October
+november 70000000 November
+december 70000000 December
+london London
+europe Europe
+africa Africa
+asia Asia
+canada Canada
+mexico Mexico
+japan Japan
+germany Germany
+france France
+italy Italy
+spain Spain
+russia Russia
+brazil Brazil
+england England
+ireland Ireland
+scotland Scotland
+chicago Chicago
+boston Boston
+seattle Seattle
+google Google
+facebook Facebook
+microsoft Microsoft
+netflix Netflix
+twitter Twitter
+instagram Instagram
+linkedin LinkedIn
+reddit Reddit
+spotify Spotify
+paris Paris
+china China
+korea Korea
+tokyo Tokyo
+berlin Berlin
+sydney Sydney
+toronto Toronto
+dubai Dubai
