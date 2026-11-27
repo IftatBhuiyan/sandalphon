@@ -57,6 +57,9 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(full("I got it form the store yesterday "), "I got it from the store yesterday ")
         XCTAssertEqual(full("helo there my friend "), "Hello there my friend ")
         XCTAssertEqual(full("i think your going to love it "), "I think you're going to love it ")
+        // A fix that was already right is not second-guessed into a different word.
+        XCTAssertEqual(full("i think thier house is nice "), "I think their house is nice ")
+        XCTAssertEqual(full("thier coming on friday "), "Their coming on Friday ")
         // Correct text is not touched.
         let fine = "Please fill in the form and send it back to me before the end of the week "
         XCTAssertEqual(full(fine), fine)

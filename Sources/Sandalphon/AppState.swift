@@ -39,6 +39,9 @@ final class AppState: ObservableObject {
     let updater: SPUStandardUpdaterController? = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil
         ? SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil) : nil
     @Published var automaticUpdates = true
+    /// Whether the "star on GitHub" note on the Overview page has been hidden. Kept on this Mac only.
+    @Published var starNoteHidden = UserDefaults.standard.bool(forKey: "starNoteHidden")
+    static let repositoryURL = URL(string: "https://github.com/IftatBhuiyan/sandalphon")!
 
     let panel = SuggestionPanel()
     lazy var controller = Controller(panel: panel)
@@ -209,6 +212,14 @@ final class AppState: ObservableObject {
     func setAutomaticUpdates(_ on: Bool) {
         updater?.updater.automaticallyChecksForUpdates = on
         automaticUpdates = updater?.updater.automaticallyChecksForUpdates ?? false
+    }
+
+    /// Opens the project page in the browser. Nothing is sent from the app itself.
+    func openRepository() { NSWorkspace.shared.open(AppState.repositoryURL) }
+
+    func hideStarNote() {
+        starNoteHidden = true
+        defaults.set(true, forKey: "starNoteHidden")
     }
 
     func checkForUpdates() {

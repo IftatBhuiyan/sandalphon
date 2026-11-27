@@ -612,6 +612,8 @@ public final class Engine {
               CasePattern(typed) != .mixed, CasePattern(typed) != .upper, !lowerCurrent.contains(" ") else { return nil }
         let typedKnown = isKnown(lowerTyped)
         if !lexicon.contains(lowerCurrent) && isKnown(lowerCurrent) { return nil } // the user's own word
+        // A well-known misspelling already has its one right answer (thier -> their); context must not move it.
+        if lowerCurrent != lowerTyped, overrides[lowerTyped]?.lowercased() == lowerCurrent { return nil }
         let ctx = makeContext(left)
         let r2i = right.count > 1 ? lexicon.index[right[1]] : nil
 
@@ -636,7 +638,10 @@ public final class Engine {
         let currentScore = gamma * fit(lowerCurrent, currentIndex) - alpha * currentCost
 
         var best: (word: Int32, score: Float)?
-        for (ci, cost) in costs where lexicon.words[Int(ci)] != lowerCurrent && follows(ci)
+        // Once a word has been corrected, a second opinion may only pick a spelling about as close to what was
+        // typed as the first one; a better-fitting but more distant word (their -> this) is a different word.
+        let costCeiling: Float = lowerCurrent == lowerTyped ? .infinity : currentCost + 0.3
+        for (ci, cost) in costs where lexicon.words[Int(ci)] != lowerCurrent && cost <= costCeiling && follows(ci)
             && !Engine.neverSubstitute.contains(lexicon.words[Int(ci)]) {
             // A different word needs evidence from both sides, not just a common neighbour.
             let score = gamma * fit(lexicon.words[Int(ci)], ci) - alpha * cost

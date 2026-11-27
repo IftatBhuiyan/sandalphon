@@ -99,6 +99,21 @@ private struct OverviewPane: View {
                 }
             }
 
+            if !state.starNoteHidden {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Sandalphon is free and open source, with no tracking of any kind. If it is useful to you, a star on GitHub helps other people find it.")
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Button("Star on GitHub") { state.openRepository() }
+                            Button("Hide This") { state.hideStarNote() }
+                                .buttonStyle(.link)
+                        }
+                    }
+                }
+            }
+
             Section("Try it") {
                 TextEditor(text: $sample)
                     .font(.system(size: 14))
@@ -295,7 +310,7 @@ private struct PrivacyPane: View {
     var body: some View {
         Form {
             Section("What Sandalphon does with your typing") {
-                Label("Everything happens on this Mac. Nothing you type is ever sent anywhere. The only thing Sandalphon uses the network for is checking GitHub for a newer version, which you can switch off on the Overview page.", systemImage: "lock")
+                Label("Everything happens on this Mac. Nothing you type is ever sent anywhere. The only thing Sandalphon uses the network for is checking GitHub for a newer version, which you can switch off on the Overview page. There are no analytics, no usage counts and no crash reports.", systemImage: "lock")
                 Label("It never sees password fields: macOS blocks them for every app.", systemImage: "key")
                 Label("It remembers words and short phrases you use often, so suggestions fit how you write. It does not keep what you wrote.", systemImage: "brain")
             }
