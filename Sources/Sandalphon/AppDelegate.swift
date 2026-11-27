@@ -141,6 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.addItem(.separator())
         add("Settings…", #selector(openSettings), key: ",")
         if state.updater != nil { add("Check for Updates…", #selector(checkForUpdates)) }
+        add("Star on GitHub…", #selector(openRepository))
         add("About Sandalphon", #selector(about))
         menu.addItem(.separator())
         add("Quit Sandalphon", #selector(quit), key: "q")
@@ -197,6 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         if let id = sender.representedObject as? String { state.toggleExcluded(id) }
     }
     @objc private func checkForUpdates() { state.checkForUpdates() }
+    @objc private func openRepository() { state.openRepository() }
     @objc private func openOverview() { showWindow(.overview) }
     @objc private func openSettings() { showWindow(state.trusted ? .typing : .overview) }
     @objc private func about() {
