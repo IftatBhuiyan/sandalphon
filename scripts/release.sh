@@ -49,5 +49,7 @@ echo "wrote build/appcast.xml"
 if [[ $DRY == 1 ]]; then echo "dry run: not tagging or publishing"; exit 0; fi
 git tag -a "$TAG" -m "Sandalphon $VERSION"
 git push origin "$TAG"
-gh release create "$TAG" "$DMG" build/appcast.xml --repo "$REPO" --title "Sandalphon $VERSION" --notes "$NOTES"
+# A copy under a fixed name, so the website can link to releases/latest/download/Sandalphon.dmg.
+cp "$DMG" build/Sandalphon.dmg
+gh release create "$TAG" "$DMG" build/Sandalphon.dmg build/appcast.xml --repo "$REPO" --title "Sandalphon $VERSION" --notes "$NOTES"
 echo "published https://github.com/$REPO/releases/tag/$TAG"

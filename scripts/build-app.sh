@@ -29,8 +29,8 @@ REPO="${SANDALPHON_REPO:-IftatBhuiyan/sandalphon}"
 
 ARCHS=()
 [[ $UNIVERSAL == 1 ]] && ARCHS=(--arch arm64 --arch x86_64)
-swift build -c release --product Sandalphon "${ARCHS[@]}"
-BIN="$(swift build -c release --product Sandalphon "${ARCHS[@]}" --show-bin-path)/Sandalphon"
+swift build -c release --product Sandalphon ${ARCHS[@]+"${ARCHS[@]}"}
+BIN="$(swift build -c release --product Sandalphon ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)/Sandalphon"
 SPARKLE=.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework
 
 APP=build/Sandalphon.app
@@ -39,7 +39,22 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Data" "$APP/Contents/Fra
 cp "$BIN" "$APP/Contents/MacOS/Sandalphon"
 cp Data/unigrams.txt Data/bigrams.txt Data/extra.txt Data/modern.txt Data/display.txt Data/misspellings.txt \
    Data/phrases.txt Data/conv_vocab.txt Data/conv2.bin Data/conv3.bin "$APP/Contents/Resources/Data/"
+# App icon. The layered paper icon (light and dark) is compiled from the Icon Composer file when the toolchain
+# can do it (Xcode 26 or later); otherwise the flat icon is used.
 cp Resources/Sandalphon.icns "$APP/Contents/Resources/Sandalphon.icns"
+ICON_NAME_KEY=""
+ICON_TMP="$(mktemp -d)"
+if xcrun actool "$PWD/Resources/Sandalphon.icon" --compile "$ICON_TMP" --app-icon Sandalphon \
+     --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx \
+     --minimum-deployment-target 14.0 --include-all-app-icons \
+     --output-partial-info-plist "$ICON_TMP/partial.plist" >/dev/null 2>&1 && [[ -f "$ICON_TMP/Assets.car" ]]; then
+  cp "$ICON_TMP/Assets.car" "$APP/Contents/Resources/Assets.car"
+  [[ -f "$ICON_TMP/Sandalphon.icns" ]] && cp "$ICON_TMP/Sandalphon.icns" "$APP/Contents/Resources/Sandalphon.icns"
+  ICON_NAME_KEY="<key>CFBundleIconName</key><string>Sandalphon</string>"
+else
+  echo "note: could not compile Resources/Sandalphon.icon with this Xcode; using the flat icon"
+fi
+rm -rf "$ICON_TMP"
 cp -R "$SPARKLE" "$APP/Contents/Frameworks/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -52,6 +67,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Sandalphon</string>
   <key>CFBundleExecutable</key><string>Sandalphon</string>
   <key>CFBundleIconFile</key><string>Sandalphon</string>
+  $ICON_NAME_KEY
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD</string>
