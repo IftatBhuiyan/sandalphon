@@ -99,7 +99,7 @@ public final class Lexicon {
                 }
             }
         }
-        for name in ["extra.txt", "modern.txt"] {
+        for name in ["wordlist.txt", "extra.txt", "modern.txt"] {  // later files win
             guard let extra = try? String(contentsOf: dataDirectory.appendingPathComponent(name), encoding: .utf8) else { continue }
             for line in extra.split(separator: "\n") where !line.hasPrefix("#") {
                 let parts = line.split(separator: " ")

@@ -29,9 +29,27 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(type("Teh end "), "The end ")
         XCTAssertEqual(type("see you on monday\n"), "see you on Monday\n")
         // Unfinished or unknown words must not be turned into something else entirely.
-        for text in ["see you tomor ", "the wor is ", "ask priyanka about ", "my hovercraft is ", "lets go to kyoto "] {
+        for text in ["see you tomor ", "the wor is ", "ask priyanka about ", "my hovercraft is ", "lets go to zyvoria "] {
             XCTAssertEqual(type(text), text, text)
         }
+    }
+
+    func testEverydayWordsAreKnown() {
+        // American and British spellings are both left as typed.
+        for text in ["my favorite color ", "my favourite colour ", "at the theater ", "the neighbors were traveling "] {
+            XCTAssertEqual(type(text), text, text)
+        }
+        // Interjections, single letters and possessives are not "corrected".
+        for text in ["oh well ", "um maybe ", "plan b is ", "the dog's bowl ", "tick tock "] {
+            XCTAssertEqual(type(text), text, text)
+        }
+        // Acronyms, places and names get their capitals; so does the surname after a title.
+        XCTAssertEqual(type("the fbi asked nasa "), "the FBI asked NASA ")
+        XCTAssertEqual(type("we met james in kyoto "), "we met James in Kyoto ")
+        XCTAssertEqual(type("ask mr smith or ms brown or dr jones "), "ask Mr Smith or Ms Brown or Dr Jones ")
+        XCTAssertEqual(type("the dr said so "), "the Dr said so ")
+        // Misspellings from the imported list.
+        XCTAssertEqual(type("it was a catapiller "), "it was a caterpillar ")
     }
 
     func testCapitalsPunctuationAndGrammar() {
