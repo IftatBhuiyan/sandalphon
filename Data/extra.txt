@@ -152,3 +152,6 @@ berlin Berlin
 sydney Sydney
 toronto Toronto
 dubai Dubai
+tock 2000000
+c'mon 12000000
+y'know 6000000

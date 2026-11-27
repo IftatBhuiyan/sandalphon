@@ -4,18 +4,26 @@ All notable changes to Sandalphon are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
-## [1.0.1] - 2026-11-26
+## [1.1.0] - 2026-11-27
 
 ### Added
+- About 14,000 more words: American spellings (*favorite*, *theater*, *traveling* were being changed to the
+  British forms), interjections (*oh*, *um*), spoken contractions (*what'd*, *there'll*), acronyms and many
+  names and places, with their capitals (*fbi* → *FBI*, *london* → *London*).
+- About 3,800 well-known misspellings from Wikipedia's list are fixed outright.
+- The surname after a title is capitalised: *mr smith* → *Mr Smith*.
 - A "Star on GitHub" menu item and a note on the Overview page that can be hidden for good. The app still
   sends nothing: no analytics, usage counts or crash reports.
+- A benchmark of real misspellings inside real sentences (`sandalphon-eval --context`).
 
 ### Changed
 - New app icon in the studio's cut-paper style, with a dark-mode variant.
 
 ### Fixed
+- Everyday words missing from the vocabulary were "corrected": *oh* → *on*, *mr* → *me*, *fbi* → *fib*.
 - The look-back pass no longer replaces a correct fix with a different word: "thier" became "their" and was
   then changed to "this" once more words followed.
+- Single letters and possessives of known words (*my mother's*) are never changed.
 - `scripts/build-app.sh` failed when run without `--universal`.
 
 ## [1.0.0] - 2026-11-26
