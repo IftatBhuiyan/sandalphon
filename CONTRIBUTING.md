@@ -45,7 +45,25 @@ swift build -c release
 Missing a word, brand or common misspelling? The lists in `Data/` are plain text and documented in
 [Data/README.md](Data/README.md). These are the easiest first contributions.
 
-## Pull requests
+## How changes get in
 
-Keep them focused, describe what changed and why, and make sure `swift test -c release` passes. By
-contributing you agree that your work is released under the MIT licence.
+`main` is protected. Nobody pushes to it directly, the maintainer included: every change arrives as a pull
+request, has to pass CI, and is squash-merged.
+
+1. **Fork** the repository and clone your fork.
+2. **Branch** from an up-to-date `main` (`git switch -c fix/short-description`).
+3. Make the change, run `swift test -c release`, and for engine changes `scripts/benchmark.sh`.
+4. **Push to your fork** and open a pull request against `IftatBhuiyan/sandalphon:main`. Fill in the template.
+5. CI runs the tests, the benchmark and a full app build. On a first contribution a maintainer has to approve
+   the run before it starts, so it may sit for a while.
+6. Review comments are resolved in the pull request; all threads must be resolved before it can merge.
+
+Keep pull requests focused: one problem each. Bug fixes, wrong-correction fixes, word-list additions and
+documentation are always welcome. For new behaviour or anything large, start a thread in
+[Ideas](https://github.com/IftatBhuiyan/sandalphon/discussions/categories/ideas) first, so you do not spend
+time on something that will not be merged.
+
+Releases are cut by the maintainer from a signed, notarized build ([RELEASING.md](RELEASING.md)); release
+tags (`v*`) are protected and pull requests should not change `VERSION`.
+
+By contributing you agree that your work is released under the MIT licence.
