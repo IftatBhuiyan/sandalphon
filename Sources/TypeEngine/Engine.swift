@@ -359,6 +359,8 @@ public final class Engine {
         // The same letters in a different order is the clearest sign of a slip there is. If only the best
         // candidate is such a swap, it needs less of a lead.
         if list.count > 1, isSwap(best.key, lower), !isSwap(list[1].key, lower) { needed *= swapFactor }
+        // A dropped double letter ("universaly") beats a rival that throws a typed letter away ("universal").
+        if list.count > 1, t.count >= 7, best.cost <= 0.5, list[1].cost >= best.cost + 0.4 { needed *= 0.5 }
         if list.count > 1, best.score - list[1].score < needed { return nil }
         return differing(pattern.apply(to: best.display), from: typed)
     }

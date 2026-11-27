@@ -50,6 +50,8 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(type("the dr said so "), "the Dr said so ")
         // Misspellings from the imported list.
         XCTAssertEqual(type("it was a catapiller "), "it was a caterpillar ")
+        // A dropped double letter in a long word.
+        XCTAssertEqual(type("it is universaly known "), "it is universally known ")
     }
 
     func testCapitalsPunctuationAndGrammar() {
