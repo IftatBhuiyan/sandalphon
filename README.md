@@ -104,6 +104,10 @@ Bug reports, word-list additions and engine improvements are all welcome. Start 
 [CONTRIBUTING.md](CONTRIBUTING.md). The most useful report is a wrong correction: what you typed, what you got,
 and which app you were in.
 
+`main` is protected: changes come in as pull requests from a fork, pass CI, and are squash-merged. Ideas for
+new behaviour go to [Discussions](https://github.com/IftatBhuiyan/sandalphon/discussions/categories/ideas)
+first.
+
 ## Licence
 
 The code is [MIT licensed](LICENSE). The language data comes from several sources with their own terms,
