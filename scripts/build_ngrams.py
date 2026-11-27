@@ -9,7 +9,8 @@ import re, sys, os
 data, out = sys.argv[1], sys.argv[2]
 vocab = {"<s>": 0}
 names = ["<s>"]
-for fn in ("unigrams.txt", "extra.txt"):
+for fn in ("unigrams.txt", "wordlist.txt", "extra.txt", "modern.txt"):
+    if not os.path.exists(os.path.join(data, fn)): continue
     for line in open(os.path.join(data, fn), encoding="utf-8-sig"):
         if line.startswith("#"): continue
         p = line.split()

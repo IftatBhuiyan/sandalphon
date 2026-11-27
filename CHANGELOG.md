@@ -4,6 +4,20 @@ All notable changes to Sandalphon are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.1.0] - Unreleased
+
+### Added
+- About 14,000 more words: American spellings (*favorite*, *theater*, *traveling* were being changed to the
+  British forms), interjections (*oh*, *um*), spoken contractions (*what'd*, *there'll*), acronyms and many
+  names and places, with their capitals (*fbi* → *FBI*, *london* → *London*).
+- About 3,800 well-known misspellings from Wikipedia's list are fixed outright.
+- The surname after a title is capitalised: *mr smith* → *Mr Smith*.
+- A benchmark of real misspellings inside real sentences (`sandalphon-eval --context`).
+
+### Fixed
+- Everyday words missing from the vocabulary were "corrected": *oh* → *on*, *mr* → *me*, *fbi* → *fib*.
+- Single letters and possessives of known words (*my mother's*) are never changed.
+
 ## [1.0.1] - 2026-11-26
 
 ### Added

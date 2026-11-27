@@ -37,7 +37,7 @@ APP=build/Sandalphon.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Data" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/Sandalphon"
-cp Data/unigrams.txt Data/bigrams.txt Data/extra.txt Data/modern.txt Data/display.txt Data/misspellings.txt \
+cp Data/unigrams.txt Data/bigrams.txt Data/wordlist.txt Data/extra.txt Data/modern.txt Data/display.txt Data/misspellings.txt Data/misspellings_wikipedia.txt \
    Data/phrases.txt Data/conv_vocab.txt Data/conv2.bin Data/conv3.bin "$APP/Contents/Resources/Data/"
 cp Resources/Sandalphon.icns "$APP/Contents/Resources/Sandalphon.icns"
 cp -R "$SPARKLE" "$APP/Contents/Frameworks/"

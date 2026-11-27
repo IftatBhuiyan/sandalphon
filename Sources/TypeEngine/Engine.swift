@@ -96,7 +96,9 @@ public final class Engine {
     public init(lexicon: Lexicon, dataDirectory: URL, user: UserModel = UserModel()) throws {
         self.lexicon = lexicon
         self.user = user
-        if let text = try? String(contentsOf: dataDirectory.appendingPathComponent("misspellings.txt"), encoding: .utf8) {
+        // The hand-written list is read last so that it wins over the imported one.
+        for name in ["misspellings_wikipedia.txt", "misspellings.txt"] {
+            guard let text = try? String(contentsOf: dataDirectory.appendingPathComponent(name), encoding: .utf8) else { continue }
             for line in text.split(separator: "\n") where !line.hasPrefix("#") {
                 let parts = line.split(separator: " ", maxSplits: 1)
                 if parts.count == 2, parts[0] != parts[1] { overrides[String(parts[0])] = String(parts[1]) }
@@ -317,13 +319,26 @@ public final class Engine {
             }
             return differing(pattern.apply(to: fixed), from: typed)
         }
+        // "mr smith", "dr patel": the word after a title is a surname.
+        let afterTitle = capitalizeNames && pattern == .lower && t.count >= 3 && ctx.prev.map(Engine.titles.contains) == true
         if let i = lexicon.index[lower] {
             if alwaysCapitalized.contains(lower) || (capitalizeNames && pattern == .lower && lexicon.autoCap.contains(i)) {
                 return differing(pattern.apply(to: lexicon.displayForm(i)), from: typed)
             }
+            // A known word is only taken for a surname when that pairing is actually seen ("mr brown", not "dr said").
+            if afterTitle, let p = ctx.prev.flatMap({ lexicon.index[$0] }), !Engine.notSurnames.contains(lower),
+               Engine.alwaysNamed.contains(ctx.prev ?? "") || lexicon.conv2[Lexicon.key(p, i)] != nil
+                || lexicon.logP[Int(i)] < -13.5 {
+                return differing(CasePattern.capitalized.apply(to: lower), from: typed)
+            }
             return nil
         }
         if user.count(lower) >= 3 { return nil }
+        // A single letter is a label, an initial or a variable; there is nothing to correct it to.
+        if t.count < 2 { return nil }
+        // The possessive of a word we know ("the dog's bowl") is fine as it stands.
+        if lower.hasSuffix("'s"), isKnown(String(lower.dropLast(2))) { return nil }
+        if afterTitle { return differing(CasePattern.capitalized.apply(to: lower), from: typed) }
         // A capitalised unknown word in the middle of a sentence is almost always a name.
         if pattern == .capitalized, let prev = ctx.prev, prev != Lexicon.startToken { return nil }
 
@@ -356,6 +371,15 @@ public final class Engine {
         var cands: [Candidate]?
         return decide(typed: typed, lower: lower, t: t, pattern: CasePattern(typed), ctx: makeContext(context), cands: &cands)
     }
+
+    static let titles: Set<String> = ["mr", "mrs", "ms", "dr", "miss", "professor", "prof", "sir", "captain", "judge"]
+    /// Titles that are always followed by a name; the others ("the dr said") need more evidence.
+    static let alwaysNamed: Set<String> = ["mr", "mrs", "ms"]
+    /// Words that follow a title without being a name ("the dr said", "miss you").
+    static let notSurnames: Set<String> = ["said", "says", "you", "and", "the", "was", "is", "will", "can", "has", "had",
+                                           "would", "could", "should", "did", "does", "just", "who", "that", "this",
+                                           "for", "but", "not", "are", "were", "him", "her", "them", "your", "out", "all",
+                                           "may", "might", "must", "about", "what", "when", "then", "there", "here"]
 
     /// Words we never turn something into on our own. Typing them directly still works.
     static let neverSubstitute: Set<String> = ["fuck", "fucked", "fucking", "fucker", "shit", "shitty", "bitch", "cunt",
@@ -611,6 +635,7 @@ public final class Engine {
               let t = encode(lowerTyped), !user.keep.contains(lowerTyped), !user.keep.contains(lowerCurrent),
               CasePattern(typed) != .mixed, CasePattern(typed) != .upper, !lowerCurrent.contains(" ") else { return nil }
         let typedKnown = isKnown(lowerTyped)
+        if lowerTyped.hasSuffix("'s"), isKnown(String(lowerTyped.dropLast(2))) { return nil }
         if !lexicon.contains(lowerCurrent) && isKnown(lowerCurrent) { return nil } // the user's own word
         // A well-known misspelling already has its one right answer (thier -> their); context must not move it.
         if lowerCurrent != lowerTyped, overrides[lowerTyped]?.lowercased() == lowerCurrent { return nil }

@@ -25,7 +25,8 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
   your word back and remembers never to touch it again.
 - **Goes back when later words prove an earlier one wrong.** "form" is a real word, so it is left alone, until
   "the store" follows it. Sandalphon then steps back, fixes it and returns the caret while you keep typing.
-- **Capitals, punctuation and common grammar slips.** Sentence starts, names and places, *could of*, *your
+- **Capitals, punctuation and common grammar slips.** Sentence starts, names, places and acronyms (*london*,
+  *nasa*, *mr smith*), *could of*, *your
   welcome*, *a apple*, repeated words, a space before a comma, double space for a full stop.
 - **Suggestions only when you ask.** Press <kbd>⌥ Esc</kbd> for completions and corrections of the word you are
   on, or select a word first to see alternatives. Right-click a selection and choose *Services › Fix Typos with
@@ -63,12 +64,15 @@ Honest numbers, reproducible with `scripts/benchmark.sh`:
 | Test | Result |
 |---|---|
 | Finger slips planted in the 6,000 most common words | 86% fixed automatically, 1.1% changed to the wrong word, the rest left alone; the right word is among the suggestions 97% of the time |
-| 670 real human misspellings with no surrounding context ([Birkbeck sets](https://norvig.com/spell-correct.html)) | 62% fixed automatically, 4.5% changed to the wrong word; the right word is offered 88% of the time |
+| 670 real human misspellings with no surrounding context ([Birkbeck sets](https://norvig.com/spell-correct.html)) | 63% fixed automatically, 4.3% changed to the wrong word; the right word is offered 89% of the time |
+| 1,180 misspellings in sentences written by schoolchildren ([Holbrook corpus](https://www.dcs.bbk.ac.uk/~ROGER/corpora.html)), a deliberately hard set | 41% fixed, 20% changed to the wrong word, 39% left; 0.1% of the 22,000 correct words around them changed |
 | The 40,000 most common English words, typed correctly | none altered, apart from deliberate fixes such as *cant* → *can't* |
 | 131,000 correctly typed words in unseen sentences, re-examined by the look-back pass | 8 wrongly changed (about 1 in 16,000) |
 | Work per keystroke | 0.13 ms |
 
-Where it is weak: three- and four-letter slips are often ambiguous and are left alone; uncommon first names
+Where it is weak: spellings by ear that are far from the real word ("wated" for "waited") are often missed or
+changed to a nearer word; a wrong word that is itself a word ("there" for "their") is rarely caught; three- and
+four-letter slips are often ambiguous and are left alone; uncommon first names
 typed in lowercase are sometimes "corrected" (16% in the benchmark); and it only knows English. Capitalised
 names in the middle of a sentence are never touched.
 

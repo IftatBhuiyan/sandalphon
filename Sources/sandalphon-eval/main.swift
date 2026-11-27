@@ -98,6 +98,76 @@ if let i = args.firstIndex(of: "--retro"), i + 1 < args.count {
     print("  ", good.joined(separator: ", "), "||", missed.joined(separator: ", "))
     exit(0)
 }
+if let i = args.firstIndex(of: "--context"), i + 1 < args.count {
+    // Real misspellings inside real sentences (Holbrook corpus format: <ERR targ=right> wrong </ERR>).
+    // Each line is typed through a fresh session; every word is then compared with what the writer meant.
+    let raw = (try? String(contentsOfFile: args[i + 1], encoding: .isoLatin1)) ?? ""
+    let verbose = args.contains("--verbose")
+    var nonword = (n: 0, fixed: 0, wrong: 0), realword = (n: 0, fixed: 0, wrong: 0)
+    var good = 0, goodChanged = 0, lines = 0, skipped = 0
+    var wrongs: [String] = [], lefts: [String] = [], harms: [String] = []
+    func bare(_ s: String) -> String { s.lowercased().trimmingCharacters(in: CharacterSet.letters.inverted.subtracting(CharacterSet(charactersIn: "'"))) }
+    for line in raw.split(separator: "\n") {
+        var typed: [String] = [], meant: [String?] = []   // meant nil = not scored
+        var rest = Substring(line)
+        var ok = true
+        while !rest.isEmpty {
+            if let open = rest.range(of: "<ERR targ=") {
+                for w in rest[..<open.lowerBound].split(separator: " ") { typed.append(String(w)); meant.append(String(w)) }
+                guard let gt = rest[open.upperBound...].firstIndex(of: ">"), let close = rest.range(of: "</ERR>") else { ok = false; break }
+                let target = rest[open.upperBound..<gt].trimmingCharacters(in: .whitespaces)
+                let wrong = rest[rest.index(after: gt)..<close.lowerBound].split(separator: " ").map(String.init)
+                if wrong.count == 1 && !target.contains(" ") { typed.append(wrong[0]); meant.append("\u{1}" + target) }
+                else { for w in wrong { typed.append(w); meant.append(nil) } }
+                rest = rest[close.upperBound...]
+            } else {
+                for w in rest.split(separator: " ") { typed.append(String(w)); meant.append(String(w)) }
+                rest = ""
+            }
+        }
+        guard ok, typed.count >= 3, typed.contains(where: { $0.contains(where: \.isLetter) }) else { continue }
+        // Punctuation is its own token in the corpus; attach it to the word before, as a person would type it.
+        var words: [String] = [], targets: [String?] = []
+        for (w, m) in zip(typed, meant) {
+            if !w.contains(where: { $0.isLetter || $0.isNumber }), !words.isEmpty { words[words.count - 1] += w }
+            else { words.append(w); targets.append(m) }
+        }
+        let session = TypingSession(engine: engine)
+        session.learningEnabled = false
+        let out = session.simulate(typing: words.joined(separator: " ") + " ").split(separator: " ").map(String.init)
+        lines += 1
+        guard out.count == words.count else { skipped += 1; continue }
+        for k in 0..<words.count {
+            guard let m = targets[k] else { continue }
+            let got = bare(out[k]), was = bare(words[k])
+            if m.hasPrefix("\u{1}") {
+                let want = bare(String(m.dropFirst()))
+                guard want != was, !want.isEmpty else { continue }
+                let isReal = engine.lexicon.contains(was)
+                if isReal { realword.n += 1 } else { nonword.n += 1 }
+                if got == want { if isReal { realword.fixed += 1 } else { nonword.fixed += 1 } }
+                else if got != was {
+                    if isReal { realword.wrong += 1 } else { nonword.wrong += 1 }
+                    if wrongs.count < 60 { wrongs.append("\(was)->\(got) (\(want))") }
+                } else if !isReal, lefts.count < 80 { lefts.append("\(was) (\(want))") }
+            } else {
+                good += 1
+                if got != was { goodChanged += 1; if harms.count < 90 { harms.append("\(k > 0 ? words[k - 1] : "^") [\(was)->\(got)] \(k + 1 < words.count ? words[k + 1] : "$")") } }
+            }
+        }
+    }
+    func pct(_ a: Int, _ b: Int) -> String { String(format: "%.1f%%", 100 * Double(a) / Double(max(b, 1))) }
+    print("sentences: \(lines) (\(skipped) skipped: word count changed)")
+    print("misspellings that are not words: \(nonword.n)  fixed \(pct(nonword.fixed, nonword.n))  wrong \(pct(nonword.wrong, nonword.n))  left \(pct(nonword.n - nonword.fixed - nonword.wrong, nonword.n))")
+    print("wrong words that are real words:  \(realword.n)  fixed \(pct(realword.fixed, realword.n))  wrong \(pct(realword.wrong, realword.n))")
+    print("correct words: \(good)  changed \(goodChanged) (\(pct(goodChanged, good)))")
+    if verbose {
+        print("  wrong:", wrongs.joined(separator: ", "))
+        print("  left:", lefts.joined(separator: ", "))
+        print("  harmed:", harms.joined(separator: ", "))
+    }
+    exit(0)
+}
 if let i = args.firstIndex(of: "--type"), i + 1 < args.count {
     let session = TypingSession(engine: engine)
     print(session.simulate(typing: args[i + 1]))
