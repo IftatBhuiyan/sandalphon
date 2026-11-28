@@ -11,14 +11,14 @@ the most important thing about it.
   off in Settings, and updates are verified with an EdDSA signature before they are installed.
 - It learns words and short phrases (up to three words) you use more than once and stores those counts in
   `~/Library/Application Support/Sandalphon/user.json`, readable only by your account and excluded from Time
-  Machine. Anything typed only once, such as a password in a field that shows it, is never saved. You can
-  inspect or erase the file from Settings › Privacy.
+  Machine. A word or phrase typed only once is not saved. The file also lists the words whose correction you
+  undid, so they are not corrected again. You can inspect or erase it from Settings › Privacy.
 - Text shortcuts you create in Settings › Shortcuts are stored in
   `~/Library/Application Support/Sandalphon/shortcuts.json`, readable only by your account. They are only what
   you entered there, never anything typed elsewhere, and can be deleted from Settings › Privacy.
 - Password fields are invisible to it: macOS withholds their keystrokes from every app. A field that shows
-  a password as you type (a "show password" toggle) is an ordinary text field, so turn Sandalphon off in that
-  app if you type secrets there often; see the line above.
+  a password as you type (a "show password" toggle) is an ordinary text field to macOS, so Sandalphon treats
+  it like any other; turn Sandalphon off in apps where you type secrets in the open.
 - It contains no analytics, telemetry or crash reporting.
 
 ## Reporting a vulnerability

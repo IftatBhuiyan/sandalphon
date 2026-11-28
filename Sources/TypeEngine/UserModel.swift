@@ -28,6 +28,8 @@ public final class UserModel: Codable {
         guard let data = try? Data(contentsOf: url),
               let model = try? JSONDecoder().decode(UserModel.self, from: data) else { return UserModel() }
         model.sanitize()
+        // Files written by older versions kept single uses and were backed up: rewrite them on the next save.
+        model.dirty = true
         return model
     }
 

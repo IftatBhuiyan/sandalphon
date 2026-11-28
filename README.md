@@ -33,7 +33,7 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
   welcome*, *a apple*, repeated words, a space before a comma, double space for a full stop.
 - **Suggestions only when you ask.** Press <kbd>⌥ Esc</kbd> for completions and corrections of the word you are
   on, or select a word first to see alternatives. Right-click a selection and choose *Services › Fix Typos with
-  Sandalphon* to correct a whole passage.
+  Sandalphon* to correct a whole passage (up to 20,000 characters).
 - **Undo from anywhere.** <kbd>⌃⌥Z</kbd> changes the latest correction back even after you have typed on, and
   the menu bar menu lists the last ten to pick from. Either way the word is remembered and left alone in future.
   The list lives in memory only.

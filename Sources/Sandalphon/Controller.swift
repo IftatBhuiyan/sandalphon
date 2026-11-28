@@ -51,6 +51,7 @@ final class Controller {
     private var settings = Settings()
     private var appExcluded = false
     private var handsOff = false          // secure or search field, or a field of an excluded app
+    private var lastFocusCheck: TimeInterval = 0
     private var singleLine = false
     private var shortcuts: [String: String] = [:]
     /// Receives a copy of the recent corrections (main thread) whenever they change. Memory only.
@@ -315,7 +316,16 @@ final class Controller {
               scalar.value >= 0x20, scalar.value != 0x7F, !(0xF700...0xF8FF).contains(scalar.value) else {
             return pass
         }
-        if handsOff { return pass }
+        if handsOff {
+            // Look again now and then, so typing is picked up as soon as focus leaves the field (a panel
+            // dismissed with Esc leaves the same app frontmost and sends no other signal).
+            let now = ProcessInfo.processInfo.systemUptime
+            if now - lastFocusCheck > 0.25 {
+                lastFocusCheck = now
+                requestSeed(after: 0.05)
+            }
+            return pass
+        }
         // We never wait for another app here. If the field has not been read yet, stay out of the way
         // until the next space, from which point everything before the caret is known from the keys alone.
         if session.needsSeed {
@@ -509,6 +519,8 @@ final class Controller {
             let info = self.reader.read()
             self.onKeyThread {
                 guard gen == self.generation, let session = self.session else { return }
+                self.noteField(info)
+                guard !self.handsOff else { return NSSound.beep() }
                 let seen = info?.textBefore?.replacingOccurrences(of: "\u{2019}", with: "'")
                     .replacingOccurrences(of: "\u{00A0}", with: " ")
                 guard info?.selectionLength == 0, let seen, seen.hasSuffix(tail) else {
@@ -530,8 +542,10 @@ final class Controller {
             guard gen == self.generation else { return }
             let info = self.reader.read()
             self.onKeyThread {
+                guard gen == self.generation else { return }
+                self.noteField(info)
                 // Browsers store runs of spaces as non-breaking spaces.
-                guard gen == self.generation, let session = self.session, let word = session.doubleSpaceCandidate,
+                guard !self.handsOff, let session = self.session, let word = session.doubleSpaceCandidate,
                       info?.selectionLength == 0,
                       let text = info?.textBefore?.replacingOccurrences(of: "\u{00A0}", with: " "),
                       text.hasSuffix(word + "  ") else { return }
@@ -664,13 +678,13 @@ final class Controller {
     /// The most text the right-click service will correct at once (a few seconds of work).
     static let serviceLimit = 20_000
 
-    /// Corrects every typo in a piece of text (the right-click service). Blocks the caller until done, or
-    /// returns the text unchanged if it is too long or takes too long.
+    /// Corrects every typo in a piece of text (the right-click service). Blocks the caller until done. Returns
+    /// nil if the text is too long or the work takes too long, so the selection is left exactly as it was.
     ///
     /// The work runs on the key thread, where the engine lives, in small slices so that keys typed meanwhile
     /// are never held up.
-    func fixTypos(in text: String) -> String {
-        guard runLoop != nil, !text.isEmpty, text.count <= Self.serviceLimit else { return text }
+    func fixTypos(in text: String) -> String? {
+        guard runLoop != nil, !text.isEmpty, text.count <= Self.serviceLimit else { return nil }
         let job = ServiceJob(text: text)
         func step() {
             guard !job.isCancelled else { return }
@@ -685,7 +699,7 @@ final class Controller {
             if job.advance(by: 400) { job.finish(String(job.buffer.dropLast())) } else { onKeyThread(step) }
         }
         onKeyThread(step)
-        return job.wait(seconds: 10) ?? text
+        return job.wait(seconds: 10)
     }
 
     private func hidePanel() {
