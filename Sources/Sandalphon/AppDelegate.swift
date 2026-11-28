@@ -54,11 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         return false
     }
 
-    /// sandalphon://overview, sandalphon://typing, sandalphon://apps, sandalphon://privacy
+    /// sandalphon://general (or overview, setup), sandalphon://typing, sandalphon://apps, sandalphon://privacy
     @objc private func handleURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
         guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue, let url = URL(string: text) else { return }
         let name = (url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))).lowercased()
-        showWindow(Pane(rawValue: name == "settings" ? "typing" : (name == "permissions" || name == "setup" ? "overview" : name)))
+        showWindow(Pane(rawValue: name == "settings" ? "typing" : (["permissions", "setup", "general"].contains(name) ? "overview" : name)))
     }
 
     // MARK: - Window
