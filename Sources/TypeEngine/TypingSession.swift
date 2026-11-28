@@ -73,15 +73,22 @@ public final class TypingSession {
         /// Where the replacement starts in the current run, or nil once the caret has moved and it can no
         /// longer be found safely.
         var start: Int?
-        /// Whether it can still be changed back where it stands.
+        /// Whether it can still be found where it stands (see also `canRevertInPlace`).
         public var inPlace: Bool { start != nil }
+        /// The same entry, marked as no longer changeable in place.
+        public func detached() -> Correction {
+            var c = self
+            c.start = nil
+            return c
+        }
     }
     public private(set) var history: [Correction] = []
     /// Bumped whenever `history` changes, so a host can tell cheaply when to refresh a copy.
     public private(set) var historyVersion = 0
     public static let historyLimit = 10
-    /// How far back from the caret a correction can still be changed in place.
-    public static let revertReach = 300
+    /// How far back from the caret a correction can still be changed in place. Everything from the word to the
+    /// caret is checked against the field first, and Accessibility only reports about 160 characters.
+    public static let revertReach = 150
     private var nextCorrectionID = 1
 
     // Second thoughts: everything typed since the caret last moved, exactly as it stands in the field, and
@@ -454,7 +461,8 @@ public final class TypingSession {
         if learningEnabled { engine.relearn(from: span.text, to: pending.text, context: span.left) }
         let delta = pending.text.count - span.text.count
         shiftHistory(after: span.start, by: delta, replacing: span.start)
-        record(original: span.text, replacement: pending.text, typed: span.typed, start: span.start)
+        // Undoing this puts back what stood before (possibly an earlier fix), so that is what is remembered.
+        record(original: span.text, replacement: pending.text, typed: span.text, start: span.start)
         spans[pending.index].text = pending.text
         spans[pending.index].looks = 9
         for i in spans.indices where i > pending.index { spans[i].start += delta }
@@ -518,26 +526,39 @@ public final class TypingSession {
         if changed { historyVersion &+= 1 }
     }
 
-    /// The text the field must end with for `revert` to be safe (compare it with the real field first).
-    public var revertTail: String { String(doc.suffix(100)) }
+    /// Whether correction `id` can still be changed back where it stands: found, and near enough to the caret.
+    public func canRevertInPlace(_ id: Int) -> Bool { revertTail(id) != nil }
+
+    /// What the field must end with for correction `id` to be changed back safely: everything from the start of
+    /// the corrected text to the caret. Nil when the correction cannot be changed back in place.
+    public func revertTail(_ id: Int) -> String? {
+        guard let entry = history.first(where: { $0.id == id }), let start = entry.start else { return nil }
+        let chars = Array(doc)
+        let end = start + entry.replacement.count
+        guard end <= chars.count, String(chars[start..<end]) == entry.replacement,
+              chars.count - start <= TypingSession.revertReach else { return nil }
+        return String(chars[start...])
+    }
+
+    /// The most recent correction that can be changed back in place.
+    public var latestRevertible: Int? { history.last { revertTail($0.id) != nil }?.id }
 
     /// Changes correction `id` (or, for nil, the most recent one that can be) back to what stood there before,
     /// and remembers not to make it again. Returns how to edit the field, or nil if it cannot be done in place,
     /// in which case the word is still remembered.
     public func revert(_ id: Int? = nil) -> RetroFix? {
         let found: Int?
-        if let id { found = history.firstIndex { $0.id == id } } else { found = history.lastIndex { $0.inPlace } }
+        if let id { found = history.firstIndex { $0.id == id } } else { found = latestRevertible.flatMap { id in history.firstIndex { $0.id == id } } }
         guard let index = found else { return nil }
+        let inReach = revertTail(history[index].id) != nil
         let entry = history[index]
         if learningEnabled { engine.keep(word: entry.typed) }
         history.remove(at: index)
         historyVersion &+= 1
         if lastCorrection?.replacement == entry.replacement { lastCorrection = nil }
-        guard let start = entry.start else { return nil }
+        guard inReach, let start = entry.start else { return nil }
         let chars = Array(doc)
         let end = start + entry.replacement.count
-        guard end <= chars.count, String(chars[start..<end]) == entry.replacement,
-              chars.count - end <= TypingSession.revertReach else { return nil }
         doc = String(chars[..<start]) + entry.original + String(chars[end...])
         let delta = entry.original.count - entry.replacement.count
         // Keep the look-back bookkeeping in step: the word there is now the original, as typed.

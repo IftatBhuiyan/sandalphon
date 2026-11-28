@@ -214,7 +214,7 @@ final class Controller {
         // Control-Option-Z changes the most recent correction back, wherever the caret has got to since.
         if code == kVK_ANSI_Z, flags.contains(.maskControl), flags.contains(.maskAlternate), !flags.contains(.maskCommand),
            !flags.contains(.maskShift) {
-            guard session.history.contains(where: { $0.inPlace }) else { return pass }
+            guard session.latestRevertible != nil else { return pass }
             undoCorrection(nil)
             return nil
         }
@@ -456,9 +456,14 @@ final class Controller {
 
     /// Hands the main thread a copy of the recent corrections if they changed.
     private func publishHistory() {
-        guard let session, session.historyVersion != historyVersionSent, let onHistory else { return }
-        historyVersionSent = session.historyVersion
-        let copy = session.history
+        guard let session, let onHistory else { return }
+        // Entries also drop out of reach as typing goes on, so that counts as a change too.
+        let reachable = session.history.filter { session.canRevertInPlace($0.id) }.count
+        let version = session.historyVersion &* 16 &+ reachable
+        guard version != historyVersionSent else { return }
+        historyVersionSent = version
+        // Entries too far back to change in place are offered as "don't correct again" only.
+        let copy = session.history.map { c in session.canRevertInPlace(c.id) ? c : c.detached() }
         DispatchQueue.main.async { onHistory(copy) }
     }
 
@@ -474,14 +479,13 @@ final class Controller {
     /// the text the session expects; otherwise nothing is typed.
     private func undoCorrection(_ id: Int?) {
         guard let session else { return }
-        let entry = id.flatMap { id in session.history.first { $0.id == id } } ?? session.history.last { $0.inPlace }
-        guard let entry else { return }
-        guard entry.inPlace else {
-            _ = session.revert(entry.id) // remembered, nothing to type
+        guard let entryID = id ?? session.latestRevertible else { return }
+        guard let fullTail = session.revertTail(entryID) else {
+            _ = session.revert(entryID) // can't be found safely any more: remembered, nothing typed
             publishHistory()
             return
         }
-        let tail = session.revertTail.replacingOccurrences(of: "\u{2019}", with: "'")
+        let tail = fullTail.replacingOccurrences(of: "\u{2019}", with: "'")
         let gen = generation
         axQueue.async {
             let info = self.reader.read()
@@ -494,7 +498,7 @@ final class Controller {
                     return
                 }
                 self.generation &+= 1
-                if let fix = session.revert(entry.id) { self.inject(fix) }
+                if let fix = session.revert(entryID) { self.inject(fix) }
                 self.publishHistory()
             }
         }

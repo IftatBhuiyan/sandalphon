@@ -129,6 +129,13 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(u.history.first?.inPlace, false)
         XCTAssertNil(u.revert(u.history.first?.id))
         XCTAssertTrue(u.engine.user.keep.contains("teh"))
+        // A correction more than `revertReach` characters back is not changed in place, only remembered.
+        let v = session()
+        v.capitalizeSentences = false
+        _ = v.simulate(typing: "teh " + String(repeating: "and so on ", count: 20))
+        XCTAssertNil(v.latestRevertible)
+        XCTAssertNil(v.revert(v.history.first?.id))
+        XCTAssertTrue(v.engine.user.keep.contains("teh"))
     }
 
     func testLeavesGoodTextAlone() {
