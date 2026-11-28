@@ -9,7 +9,7 @@ enum Pane: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .overview: return "Overview"
+        case .overview: return "General"
         case .typing: return "Typing"
         case .apps: return "Apps"
         case .shortcuts: return "Shortcuts"
@@ -18,7 +18,7 @@ enum Pane: String, CaseIterable, Identifiable {
     }
     var symbol: String {
         switch self {
-        case .overview: return "checkmark.seal"
+        case .overview: return "gearshape"
         case .typing: return "keyboard"
         case .apps: return "square.grid.2x2"
         case .shortcuts: return "text.badge.plus"
@@ -43,7 +43,7 @@ final class AppState: ObservableObject {
     @Published var automaticUpdates = true
     /// Text shortcuts, saved to `ShortcutStore.url` whenever they change.
     @Published var shortcuts: [Shortcut] = ShortcutStore.load()
-    /// Whether the "star on GitHub" note on the Overview page has been hidden. Kept on this Mac only.
+    /// Whether the "star on GitHub" note on the General page has been hidden. Kept on this Mac only.
     @Published var starNoteHidden = UserDefaults.standard.bool(forKey: "starNoteHidden")
     static let repositoryURL = URL(string: "https://github.com/IftatBhuiyan/sandalphon")!
 
@@ -72,7 +72,8 @@ final class AppState: ObservableObject {
 
     var isActive: Bool { trusted && settings.enabled && engineReady }
 
-    init() {
+    /// `preview` builds the state for screenshots only: nothing is polled and the key tap is never started.
+    init(preview: Bool = false) {
         defaults.register(defaults: ["enabled": true, "autocorrect": true, "suggestMode": SuggestMode.onDemand.rawValue, "predictions": true,
                                      "tabAccepts": true, "capitalizeSentences": true, "capitalizeNames": true, "grammar": true,
                                      "doubleSpacePeriod": true, "retro": true])
@@ -88,7 +89,7 @@ final class AppState: ObservableObject {
         settings.retro = defaults.bool(forKey: "retro")
         if let list = defaults.stringArray(forKey: "excluded") { settings.excluded = Set(list) }
         automaticUpdates = updater?.updater.automaticallyChecksForUpdates ?? false
-        refresh()
+        if !preview { refresh() }
     }
 
     // MARK: - Polling
