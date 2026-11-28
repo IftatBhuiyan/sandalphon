@@ -187,7 +187,7 @@ private struct GeneralPane: View {
                 SwitchRow(title: "Turn off the macOS autocorrect",
                           detail: state.systemAutocorrectOff
                               ? "Recommended, so the two don't correct the same word. Open apps pick this up when they next start."
-                              : "Recommended: otherwise macOS and Sandalphon may both change the same word.",
+                              : "Recommended: otherwise macOS and Sandalphon may both change the same word. Open apps pick up a change when they next start.",
                           isOn: Binding(get: { state.systemAutocorrectOff }, set: { state.setSystemAutocorrectOff($0) }))
             }
 

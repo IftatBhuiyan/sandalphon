@@ -18,8 +18,11 @@ enum SettingsSnapshot {
         state.systemAutocorrectOff = state.trusted
         state.launchAtLogin = state.trusted
         state.learnedWords = 1284
-        let height = arguments.firstIndex(of: "--height").flatMap { $0 + 1 < arguments.count ? Double(arguments[$0 + 1]) : nil }
-            .map { CGFloat(max($0, 300)) } ?? 560
+        var height: CGFloat = 560
+        if let i = arguments.firstIndex(of: "--height"), i + 1 < arguments.count,
+           let value = Double(arguments[i + 1]), value.isFinite, (300...4000).contains(value) {
+            height = CGFloat(value)
+        }
         for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             for pane in Pane.allCases {
                 state.pane = pane
