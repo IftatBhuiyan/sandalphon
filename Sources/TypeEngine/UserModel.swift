@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 /// What Sandalphon has learned from this person's typing. Stored locally as JSON, never sent anywhere.
 public final class UserModel: Codable {
@@ -27,6 +31,9 @@ public final class UserModel: Codable {
     }
 
     public func save(to url: URL) {
+        #if os(WASI)
+        return // the web demo keeps nothing
+        #else
         guard dirty else { return }
         prune()
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -35,6 +42,7 @@ public final class UserModel: Codable {
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
             dirty = false
         }
+        #endif
     }
 
     /// Forgets everything learned.
