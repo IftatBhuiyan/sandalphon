@@ -18,7 +18,9 @@ grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "CHANGELOG.md has no section f
 # A tag left by a run that failed before publishing is fine, as long as it is this commit and unpublished.
 if [[ $DRY == 0 ]] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   [[ "$(git rev-parse "$TAG^{commit}")" == "$(git rev-parse HEAD)" ]] || { echo "$TAG exists on another commit" >&2; exit 1; }
-  ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 || { echo "$TAG is already published" >&2; exit 1; }
+  # Carry on only when GitHub confirms there is no release yet; any other answer (or an error) stops here.
+  status="$(gh api "repos/$REPO/releases/tags/$TAG" --silent -i 2>/dev/null | head -1 | awk '{print $2}')" || true
+  [[ "$status" == 404 ]] || { echo "$TAG already has a release, or GitHub could not be asked (HTTP ${status:-none})" >&2; exit 1; }
 fi
 
 swift test -c release
