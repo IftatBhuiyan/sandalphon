@@ -85,6 +85,37 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(full(fine), fine)
     }
 
+    func testFixesConfusableWordsFromContext() {
+        // Once the words after it are known, a wrong-but-real word from a confusable set is put right.
+        // (It takes two words after it, and is applied as the next key is typed.)
+        XCTAssertEqual(type("i dont want to loose you again now "), "I don't want to lose you again now ")
+        XCTAssertEqual(type("put it over their by the door "), "put it over there by the door ")
+        // Correct uses are left alone, including the ones that are commoner as the other word.
+        for text in ["their house is over there ", "it was too late to call ", "you're welcome to come ",
+                     "we want to go to bed now ", "the dog wagged its tail ", "were you there yesterday "] {
+            XCTAssertEqual(type(text), text, text)
+        }
+    }
+
+    func testTextShortcuts() {
+        let s = session()
+        s.capitalizeSentences = false
+        s.shortcuts = [";addr": "1 Infinite Loop\nCupertino", "omw": "on my way", "Sig": "Best, Sam"]
+        // Expands on a space or punctuation, and the key that ended it still arrives.
+        XCTAssertEqual(s.simulate(typing: "send it to ;addr please "), "send it to 1 Infinite Loop\nCupertino please ")
+        XCTAssertEqual(s.simulate(typing: "omw, see you "), "on my way, see you ")
+        // Only the exact key, on its own: not inside a word, not a different case.
+        XCTAssertEqual(s.simulate(typing: "xomw sig "), "xomw sig ")
+        // Backspace straight after puts the key back as typed (as it does for a correction), it is not
+        // expanded again, and it is not learned as a word.
+        XCTAssertEqual(s.simulate(typing: "omw \u{8}"), "omw ")
+        XCTAssertEqual(s.simulate(typing: "omw \u{8}now "), "omw now ")
+        XCTAssertFalse(s.engine.user.keep.contains("omw"))
+        // In a single-line field a newline in the text becomes a space.
+        s.multiline = false
+        XCTAssertEqual(s.simulate(typing: ";addr "), "1 Infinite Loop Cupertino ")
+    }
+
     /// Applies a change to an earlier part of `buffer`, as the app does with arrow keys.
     private func apply(_ fix: TypingSession.RetroFix, to buffer: inout String) {
         var chars = Array(buffer)

@@ -23,6 +23,9 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
 - **Fixes typos when you press space.** Swapped letters, missed and doubled letters, neighbouring keys, missing
   apostrophes, missing spaces. It only changes a word when it is confident, and Backspace straight after puts
   your word back and remembers never to touch it again.
+- **Fixes the right word in the wrong place.** *Their* for *there*, *your* for *you're*, *loose* for *lose*: once the
+  words after it are typed, a word from a short list of easily confused ones is changed if the words on both sides
+  make the other one clearly right.
 - **Goes back when later words prove an earlier one wrong.** "form" is a real word, so it is left alone, until
   "the store" follows it. Sandalphon then steps back, fixes it and returns the caret while you keep typing.
 - **Capitals, punctuation and common grammar slips.** Sentence starts, names, places and acronyms (*london*,
@@ -35,6 +38,8 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
   the menu bar menu lists the last ten to pick from. Either way the word is remembered and left alone in future.
   The list lives in memory only.
 - **Learns how you write.** Your own words and phrases, kept in one file on your Mac that you can read or erase.
+- **Text shortcuts.** Type `;addr` and a space and it becomes your address. Add them in Settings › Shortcuts;
+  Delete straight after puts the shortcut back.
 - **Knows when to stay out.** It is off in terminals, code editors and password managers by default, ignores
   password fields, search boxes and address bars, and leaves URLs, emails, paths and `camelCase` alone.
 
@@ -42,7 +47,13 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
 
 ## Install
 
-1. Download `Sandalphon-x.y.z.dmg` from the [latest release](https://github.com/IftatBhuiyan/sandalphon/releases/latest)
+1. Install with [Homebrew](https://brew.sh):
+
+   ```sh
+   brew install --cask iftatbhuiyan/tap/sandalphon
+   ```
+
+   or download `Sandalphon-x.y.z.dmg` from the [latest release](https://github.com/IftatBhuiyan/sandalphon/releases/latest)
    and drag Sandalphon to Applications.
 2. Open it and follow the setup window: allow **Accessibility** access (macOS requires this for any app that
    reads and corrects typing), and switch off the built-in autocorrect so the two do not fight.
@@ -74,7 +85,9 @@ Honest numbers, reproducible with `scripts/benchmark.sh`:
 | Work per keystroke | 0.13 ms |
 
 Where it is weak: spellings by ear that are far from the real word ("wated" for "waited") are often missed or
-changed to a nearer word; a wrong word that is itself a word ("there" for "their") is rarely caught; three- and
+changed to a nearer word; a wrong word that is itself a word is only caught for a short list of easily confused words
+(*their/there/they're*, *your/you're*, *its/it's*, *then/than*, *lose/loose*, *to/too*, *affect/effect*,
+*who's/whose*, *were/where/we're*), and only when the words around it make the right one clear; three- and
 four-letter slips are often ambiguous and are left alone; uncommon first names
 typed in lowercase are sometimes "corrected" (16% in the benchmark); and it only knows English. Capitalised
 names in the middle of a sentence are never touched.

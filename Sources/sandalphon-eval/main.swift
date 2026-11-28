@@ -77,7 +77,8 @@ if let i = args.firstIndex(of: "--retro"), i + 1 < args.count {
         for k in 0..<(words.count - 1) {
             let left = Array((["<s>"] + words[..<k]).suffix(2)), right = Array(words[(k + 1)...].prefix(2))
             checked += 1
-            if let alt = engine.reconsider(typed: words[k], current: words[k], left: left, right: right) {
+            let firstLook = engine.reconsider(typed: words[k], current: words[k], left: left, right: Array(right.prefix(1)))
+            if let alt = firstLook ?? (right.count > 1 ? engine.reconsider(typed: words[k], current: words[k], left: left, right: right) : nil) {
                 changedGood += 1
                 if bad.count < 40 { bad.append("\(left.joined(separator: " ")) [\(words[k])->\(alt)] \(right.joined(separator: " "))") }
             }
@@ -98,13 +99,62 @@ if let i = args.firstIndex(of: "--retro"), i + 1 < args.count {
     print("  ", good.joined(separator: ", "), "||", missed.joined(separator: ", "))
     exit(0)
 }
+if let i = args.firstIndex(of: "--confusables"), i + 1 < args.count {
+    // Held-out sentences: for each word in a confusable set, is a correct use ever changed, and when another
+    // member of its set is planted in its place, is it put right?
+    let text = (try? String(contentsOfFile: args[i + 1], encoding: .utf8)) ?? ""
+    let sets = [["their", "there", "they're"], ["your", "you're"], ["its", "it's"], ["then", "than"], ["loose", "lose"],
+                ["to", "too"], ["affect", "effect"], ["who's", "whose"], ["were", "where", "we're"]]
+    var setOf: [String: Int] = [:]
+    for (n, set) in sets.enumerated() { for w in set { setOf[w] = n } }
+    var uses = [Int](repeating: 0, count: sets.count), changed = uses, planted = uses, fixed = uses, wrong = uses
+    var examples: [String] = []
+    var checked = 0
+    for line in text.split(separator: "\n").prefix(Int(ProcessInfo.processInfo.environment["CONF_LINES"] ?? "") ?? 200000) {
+        let words = line.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
+            .split(whereSeparator: { !($0.isLetter || $0 == "'") }).map(String.init)
+        guard words.count >= 4, words.allSatisfy({ engine.lexicon.contains($0) }) else { continue }
+        for k in 0..<(words.count - 1) {
+            guard let n = setOf[words[k]] else { continue }
+            checked += 1
+            let left = Array((["<s>"] + words[..<k]).suffix(2)), right = Array(words[(k + 1)...].prefix(2))
+            uses[n] += 1
+            // The app looks once when one word follows and again when two do; either can change the word.
+            let firstLook = engine.reconsider(typed: words[k], current: words[k], left: left, right: Array(right.prefix(1)))
+            if let alt = firstLook ?? (right.count > 1 ? engine.reconsider(typed: words[k], current: words[k], left: left, right: right) : nil) {
+                changed[n] += 1
+                if examples.count < 40 { examples.append("\(left.joined(separator: " ")) [\(words[k])->\(alt)] \(right.joined(separator: " "))") }
+            }
+            for other in sets[n] where other != words[k] {
+                planted[n] += 1
+                let alt = (engine.reconsider(typed: other, current: other, left: left, right: Array(right.prefix(1)))
+                    ?? (right.count > 1 ? engine.reconsider(typed: other, current: other, left: left, right: right) : nil))?.lowercased()
+                if alt == words[k] { fixed[n] += 1 } else if alt != nil { wrong[n] += 1 }
+            }
+        }
+    }
+    func pct(_ a: Int, _ b: Int) -> String { String(format: "%.2f%%", 100 * Double(a) / Double(max(b, 1))) }
+    print("set                       correct uses  changed          planted  fixed            wrong")
+    for (n, set) in sets.enumerated() {
+        print(set.joined(separator: "/").padding(toLength: 26, withPad: " ", startingAt: 0)
+              + String(uses[n]).padding(toLength: 14, withPad: " ", startingAt: 0)
+              + "\(changed[n]) (\(pct(changed[n], uses[n])))".padding(toLength: 17, withPad: " ", startingAt: 0)
+              + String(planted[n]).padding(toLength: 9, withPad: " ", startingAt: 0)
+              + "\(fixed[n]) (\(pct(fixed[n], planted[n])))".padding(toLength: 17, withPad: " ", startingAt: 0)
+              + "\(wrong[n])")
+    }
+    let tu = uses.reduce(0, +), tc = changed.reduce(0, +), tp = planted.reduce(0, +), tf = fixed.reduce(0, +)
+    print("total: \(tu) correct uses, \(tc) changed (\(pct(tc, tu))); \(tp) planted, \(tf) fixed (\(pct(tf, tp))), \(wrong.reduce(0, +)) wrong")
+    if args.contains("--verbose") { print("  ", examples.joined(separator: " | ")) }
+    exit(0)
+}
 if let i = args.firstIndex(of: "--context"), i + 1 < args.count {
     // Real misspellings inside real sentences (Holbrook corpus format: <ERR targ=right> wrong </ERR>).
     // Each line is typed through a fresh session; every word is then compared with what the writer meant.
     let raw = (try? String(contentsOfFile: args[i + 1], encoding: .isoLatin1)) ?? ""
     let verbose = args.contains("--verbose")
     var nonword = (n: 0, fixed: 0, wrong: 0), realword = (n: 0, fixed: 0, wrong: 0)
-    var good = 0, goodChanged = 0, lines = 0, skipped = 0
+    var good = 0, goodChanged = 0, lines = 0, skipped = 0, confusableReal = 0
     var wrongs: [String] = [], lefts: [String] = [], harms: [String] = []
     func bare(_ s: String) -> String { s.lowercased().trimmingCharacters(in: CharacterSet.letters.inverted.subtracting(CharacterSet(charactersIn: "'"))) }
     for line in raw.split(separator: "\n") {
@@ -134,7 +184,9 @@ if let i = args.firstIndex(of: "--context"), i + 1 < args.count {
         }
         let session = TypingSession(engine: engine)
         session.learningEnabled = false
-        let out = session.simulate(typing: words.joined(separator: " ") + " ").split(separator: " ").map(String.init)
+        // A look-back fix is applied just before the next key; the last words of a line have none, so the
+        // line ends with an extra space, as if the writer had carried on.
+        let out = session.simulate(typing: words.joined(separator: " ") + "  ").split(separator: " ").map(String.init)
         lines += 1
         guard out.count == words.count else { skipped += 1; continue }
         for k in 0..<words.count {
@@ -145,6 +197,7 @@ if let i = args.firstIndex(of: "--context"), i + 1 < args.count {
                 guard want != was, !want.isEmpty else { continue }
                 let isReal = engine.lexicon.contains(was)
                 if isReal { realword.n += 1 } else { nonword.n += 1 }
+                if isReal, engine.isConfusable(was), engine.isConfusable(want) { confusableReal += 1 }
                 if got == want { if isReal { realword.fixed += 1 } else { nonword.fixed += 1 } }
                 else if got != was {
                     if isReal { realword.wrong += 1 } else { nonword.wrong += 1 }
@@ -160,6 +213,7 @@ if let i = args.firstIndex(of: "--context"), i + 1 < args.count {
     print("sentences: \(lines) (\(skipped) skipped: word count changed)")
     print("misspellings that are not words: \(nonword.n)  fixed \(pct(nonword.fixed, nonword.n))  wrong \(pct(nonword.wrong, nonword.n))  left \(pct(nonword.n - nonword.fixed - nonword.wrong, nonword.n))")
     print("wrong words that are real words:  \(realword.n)  fixed \(pct(realword.fixed, realword.n))  wrong \(pct(realword.wrong, realword.n))")
+    print("  of which both words are in a confusable set: \(confusableReal)")
     print("correct words: \(good)  changed \(goodChanged) (\(pct(goodChanged, good)))")
     if verbose {
         print("  wrong:", wrongs.joined(separator: ", "))

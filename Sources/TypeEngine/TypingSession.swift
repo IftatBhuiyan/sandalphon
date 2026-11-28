@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 /// A change to make in the focused text field, expressed relative to the caret.
 public struct Edit: Equatable {
@@ -44,6 +48,11 @@ public final class TypingSession {
     public private(set) var doubleSpaceCandidate: String?
     /// When false, nothing typed is added to the user's learned words.
     public var learningEnabled = true
+    /// Text shortcuts: a key typed on its own ("`;addr`") and followed by a space or punctuation is replaced
+    /// by its text. Keys are matched exactly, case included.
+    public var shortcuts: [String: String] = [:]
+    /// False in single-line fields, where a newline in a shortcut's text could submit the form.
+    public var multiline = true
 
     /// The current token contains something that is not prose (digits, @, /, a dot inside it...). Hands off.
     private var dirty = false
@@ -60,7 +69,9 @@ public final class TypingSession {
     private var stale = false
     /// When true, suggestions are only computed by `updateSuggestions()`, keeping key handling instant.
     public var lazySuggestions = false
-    private var lastCorrection: (original: String, replacement: String, delimiter: String)?
+    private var lastCorrection: (original: String, replacement: String, delimiter: String, shortcut: Bool)?
+    /// Everything typed since the last whitespace, punctuation included, for matching shortcut keys.
+    private var rawToken = ""
 
     // Recent corrections, newest last, kept in memory only and never more than `historyLimit`.
     public struct Correction: Identifiable, Equatable {
@@ -144,6 +155,7 @@ public final class TypingSession {
         suppressed = false
         autoSpacePending = false
         lastCorrection = nil
+        rawToken = ""
         prevRaw = nil
         spaceRun = 0
         atFieldStart = false
@@ -169,6 +181,7 @@ public final class TypingSession {
             token = tail[tail.index(after: i)...]
             before = tail[..<i]
         }
+        rawToken = token.count <= 64 ? String(token) : ""
         while let f = token.first, TypingSession.openers.contains(f) { token = token.dropFirst() }
         if token.isEmpty {
             dirty = false
@@ -198,6 +211,7 @@ public final class TypingSession {
     /// A letter or in-word apostrophe (`.word`), or any other non-delimiter character (`.other`).
     public func character(_ ch: Character) {
         lastCorrection = nil
+        if rawToken.count < 64 { rawToken.append(ch) }
         autoSpacePending = false
         afterSpace = false
         doubleSpaceCandidate = nil
@@ -227,6 +241,8 @@ public final class TypingSession {
         var edit: Edit?
         let isSpace = ch == " " || ch == "\t"
         doubleSpaceCandidate = nil
+        if let e = expandShortcut(before: ch) { return e }
+        if ch.isWhitespace { rawToken = "" } else if rawToken.count < 64 { rawToken.append(ch) }
 
         // "word " + "." after an accepted suggestion becomes "word."; so does a stray space before a comma.
         let afterAccept = autoSpacePending && [".", ",", "!", "?", ";", ":"].contains(ch)
@@ -271,7 +287,7 @@ public final class TypingSession {
             }
             if final != word || replacedPrevious {
                 edit = Edit(deleteCount: deleteCount, insert: final, repostKey: true)
-                if !ch.isNewline { lastCorrection = (original, final, String(ch)) }
+                if !ch.isNewline { lastCorrection = (original, final, String(ch), false) }
             }
             let left = Array(context.suffix(2))
             if edit != nil {
@@ -340,9 +356,32 @@ public final class TypingSession {
         return edit
     }
 
+    /// A shortcut key just finished: replace it with its text, then deliver the key that ended it.
+    private func expandShortcut(before ch: Character) -> Edit? {
+        guard !shortcuts.isEmpty, !rawToken.isEmpty, var text = shortcuts[rawToken] else { return nil }
+        if !multiline { text = text.replacingOccurrences(of: "\n", with: " ") }
+        let key = rawToken
+        rawToken = ""
+        // What follows is the user's own text: start afresh after it.
+        clearRun()
+        word = ""
+        wordStart = nil
+        context = []
+        prevRaw = nil
+        spaceRun = 0
+        autoSpacePending = false
+        suggestions = []
+        dirty = !(ch == " " || ch == "\t" || ch.isNewline)
+        afterSpace = ch == " " || ch == "\t"
+        lastCorrection = ch.isNewline ? nil : (key, text, String(ch), true)
+        if ch.isNewline { needsSeed = true }
+        return Edit(deleteCount: key.count, insert: text, repostKey: true)
+    }
+
     /// The caller replaced the two spaces after a word with ". ".
     public func appliedDoubleSpacePeriod() {
         doubleSpaceCandidate = nil
+        rawToken = ""
         prevRaw = nil
         spaceRun = 0
         context = [Lexicon.startToken]
@@ -361,6 +400,16 @@ public final class TypingSession {
         prevRaw = nil
         spaceRun = 0
         doubleSpaceCandidate = nil
+        if let lc = lastCorrection, word.isEmpty, lc.shortcut {
+            // Put the shortcut's key back as typed. It is not a word, so nothing is learned from it.
+            lastCorrection = nil
+            clearRun()
+            context = []
+            dirty = true
+            rawToken = lc.delimiter.first?.isWhitespace == true ? "" : lc.original + lc.delimiter
+            return Edit(deleteCount: lc.replacement.count + lc.delimiter.count,
+                        insert: lc.original + lc.delimiter, repostKey: false)
+        }
         if let lc = lastCorrection, word.isEmpty {
             lastCorrection = nil
             if learningEnabled { engine.keep(word: lc.original) }
@@ -380,6 +429,7 @@ public final class TypingSession {
                         insert: lc.original + lc.delimiter, repostKey: false)
         }
         lastCorrection = nil
+        if !rawToken.isEmpty { rawToken.removeLast() }
         if !word.isEmpty {
             word.removeLast()
             docRemove(1)
@@ -398,6 +448,7 @@ public final class TypingSession {
         guard suggestions.indices.contains(index) else { return nil }
         let text = suggestions[index].text
         let edit = Edit(deleteCount: word.count, insert: text + " ", repostKey: false)
+        rawToken = ""
         commit(text)
         docRemove(word.count)
         doc += text + " "
@@ -663,45 +714,57 @@ public final class TypingSession {
         return true
     }
 
+    /// Applies a pending revision of an earlier word to `buffer`, the way the app does just before the next key.
+    /// Returns whether the text changed. Exposed for hosts that keep the text themselves (the web demo).
+    @discardableResult
+    public func applyPendingRetro(to buffer: inout String) -> Bool {
+        if needsSeed { seed(textBeforeCaret: buffer) }
+        if let tail = pendingRetroTail { confirmRetro(matches: buffer.hasSuffix(tail)) }
+        guard let fix = takeRetro() else { return false }
+        var chars = Array(buffer)
+        let end = chars.count - fix.back
+        guard end - fix.deleteCount >= 0, end <= chars.count else { return false }
+        chars.replaceSubrange((end - fix.deleteCount)..<end, with: Array(fix.insert))
+        buffer = String(chars)
+        return true
+    }
+
+    /// Feeds one key to the session and applies the result to `buffer`, which holds the text before the caret.
+    /// "\u{8}" is backspace and "\t" accepts the first suggestion.
+    public func type(_ ch: Character, into buffer: inout String) {
+        applyPendingRetro(to: &buffer)
+        func apply(_ e: Edit) {
+            buffer.removeLast(min(e.deleteCount, buffer.count))
+            buffer += e.insert
+        }
+        if ch == "\u{8}" {
+            if let e = backspace() { apply(e) } else if !buffer.isEmpty { buffer.removeLast() }
+        } else if ch == "\t" && (updateSuggestions() || true) && !suggestions.isEmpty {
+            if let e = accept(0) { apply(e) }
+        } else if kind(of: ch) == .delimiter {
+            if let e = delimiter(ch) {
+                apply(e)
+                if e.repostKey { buffer.append(ch) }
+            } else {
+                buffer.append(ch)
+                if let cand = doubleSpaceCandidate, buffer.hasSuffix(cand + "  ") {
+                    buffer.removeLast(2)
+                    buffer += ". "
+                    appliedDoubleSpacePeriod()
+                }
+            }
+        } else {
+            character(ch)
+            buffer.append(ch)
+        }
+    }
+
     /// Types `text` through the session against an in-memory buffer and returns the resulting text.
     /// "\u{8}" is backspace and "\t" accepts the first suggestion. Used by tests and the eval tool.
     public func simulate(typing text: String) -> String {
         var buffer = ""
         seed(textBeforeCaret: "")
-        func apply(_ e: Edit) {
-            buffer.removeLast(min(e.deleteCount, buffer.count))
-            buffer += e.insert
-        }
-        for ch in text {
-            if needsSeed { seed(textBeforeCaret: buffer) }
-            if let tail = pendingRetroTail { confirmRetro(matches: buffer.hasSuffix(tail)) }
-            if let fix = takeRetro() {
-                var chars = Array(buffer)
-                let end = chars.count - fix.back
-                chars.replaceSubrange((end - fix.deleteCount)..<end, with: Array(fix.insert))
-                buffer = String(chars)
-            }
-            if ch == "\u{8}" {
-                if let e = backspace() { apply(e) } else if !buffer.isEmpty { buffer.removeLast() }
-            } else if ch == "\t" && (updateSuggestions() || true) && !suggestions.isEmpty {
-                if let e = accept(0) { apply(e) }
-            } else if kind(of: ch) == .delimiter {
-                if let e = delimiter(ch) {
-                    apply(e)
-                    if e.repostKey { buffer.append(ch) }
-                } else {
-                    buffer.append(ch)
-                    if let cand = doubleSpaceCandidate, buffer.hasSuffix(cand + "  ") {
-                        buffer.removeLast(2)
-                        buffer += ". "
-                        appliedDoubleSpacePeriod()
-                    }
-                }
-            } else {
-                character(ch)
-                buffer.append(ch)
-            }
-        }
+        for ch in text { type(ch, into: &buffer) }
         return buffer
     }
 }

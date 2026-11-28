@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 public struct Suggestion: Equatable {
     /// Text to put in place of the word being typed (or to insert, for a next-word prediction).
@@ -540,7 +544,11 @@ public final class Engine {
         let lower = normalize(word)
         guard let t = encode(lower) else { return [] }
         return corrections(lower: lower, t: t, ctx: makeContext(context)).prefix(6).map {
+            #if os(WASI)
+            "\($0.key) score=\($0.score) cost=\($0.cost)"
+            #else
             String(format: "%@ score=%.2f cost=%.2f", $0.key, $0.score, $0.cost)
+            #endif
         }
     }
 
@@ -631,11 +639,93 @@ public final class Engine {
     ///   - current: what stands in the text now (the same, or an earlier correction).
     ///   - left: up to two words before it; right: one or two words after it.
     /// - Returns: a better word, or nil if what is there should stay.
+    // MARK: - Confusable real words
+
+    /// Real words that are easy to type in place of each other. Each is only ever changed to another member of
+    /// its own set, and only once the words on both sides are known (the look-back pass).
+    static let confusionSets: [[String]] = [
+        ["their", "there", "they're"], ["your", "you're"], ["its", "it's"], ["then", "than"], ["loose", "lose"],
+        ["to", "too"], ["affect", "effect"], ["who's", "whose"], ["were", "where", "we're"],
+    ]
+    private static let confusionIndex: [String: [String]] = {
+        var m: [String: [String]] = [:]
+        for set in confusionSets { for w in set { m[w] = set } }
+        return m
+    }()
+    var confusableMargin: Float = env("SANDALPHON_CONF_MARGIN") ?? 10
+    /// How much more often the replacement must be seen with these exact neighbours than the word as typed.
+    var confusableRatio: Float = env("SANDALPHON_CONF_RATIO") ?? 6
+    var confusableRight = Int(env("SANDALPHON_CONF_RIGHT") ?? 2)
+    /// How many times the replacement must have been seen with both neighbours at once ("going to lose you").
+    var confusableSpan: Float = env("SANDALPHON_CONF_SPAN") ?? 1
+    var confusableEnabledSets: Set<String>? = ProcessInfo.processInfo.environment["SANDALPHON_CONF_SETS"]
+        .map { Set($0.split(separator: ",").map(String.init)) }
+
+    /// Whether `word` belongs to one of the confusable sets.
+    public func isConfusable(_ word: String) -> Bool { Engine.confusionIndex[normalize(word)] != nil }
+
+    /// A different member of `current`'s confusable set, if the words around it make that one clearly right.
+    /// `left` is up to two words before (or the sentence-start token), `right` one or two words after.
+    public func confusable(current: String, left: [String], right: [String]) -> String? {
+        let lower = normalize(current)
+        // Two following words, not one: with only one, "Their lovely hum" reads as "They're lovely".
+        guard right.count >= confusableRight, let set = Engine.confusionIndex[lower], let r1 = right.first, let r1i = lexicon.index[r1],
+              let ci = lexicon.index[lower], !user.keep.contains(lower),
+              CasePattern(current) != .upper, CasePattern(current) != .mixed else { return nil }
+        if let only = confusableEnabledSets, !only.contains(set[0]) { return nil }
+        let l1 = left.last.flatMap { lexicon.contextIndex($0) }
+        let l2 = left.count >= 2 ? lexicon.contextIndex(left[left.count - 2]) : nil
+        let r2i = right.count > 1 ? lexicon.index[right[1]] : nil
+        let ctx = makeContext(left)
+
+        /// How well `w` fits between its neighbours, as in `reconsider`.
+        func fit(_ w: String, _ wi: Int32) -> Float {
+            var s = log(probability(w, wi, ctx))
+            s += log(probability(r1, r1i, makeContext((left.last.map { [$0] } ?? []) + [w])))
+            if let r2i { s += log(probability(right[1], r2i, makeContext([w, r1]))) }
+            return s
+        }
+        /// Direct sightings of `w` with these exact neighbours: pairs on each side and the triples around it.
+        /// Back-off to plain word frequency is deliberately not evidence ("to" is 20 times commoner than "too").
+        func seen(_ w: Int32) -> Float {
+            var e: Float = 0
+            if let l1 { e += lexicon.conv2[Lexicon.key(l1, w)] ?? 0 }
+            e += lexicon.conv2[Lexicon.key(w, r1i)] ?? 0
+            if let l1 { e += 3 * (lexicon.conv3[Lexicon.key3(l1, w, r1i)] ?? 0) }
+            if let l1, let l2 { e += 2 * (lexicon.conv3[Lexicon.key3(l2, l1, w)] ?? 0) }
+            if let r2i { e += 2 * (lexicon.conv3[Lexicon.key3(w, r1i, r2i)] ?? 0) }
+            return e
+        }
+        /// Sightings that need the word in the middle: a triple spanning it, which a lone common neighbour
+        /// cannot supply.
+        func spanned(_ w: Int32) -> Float {
+            guard let l1 else { return 0 }
+            return lexicon.conv3[Lexicon.key3(l1, w, r1i)] ?? 0
+        }
+
+        let currentFit = fit(lower, ci), currentSeen = seen(ci)
+        var best: (word: Int32, fit: Float)?
+        for other in set where other != lower {
+            guard let oi = lexicon.index[other] else { continue }
+            let f = fit(other, oi)
+            if best == nil || f > best!.fit { best = (oi, f) }
+        }
+        guard let best, best.fit - currentFit >= confusableMargin else { return nil }
+        let bestSeen = seen(best.word)
+        guard spanned(best.word) >= confusableSpan || (confusableSpan == 0 && bestSeen >= 50),
+              bestSeen >= confusableRatio * max(currentSeen, 1) else { return nil }
+        return CasePattern(current).apply(to: lexicon.displayForm(best.word))
+    }
+
     public func reconsider(typed: String, current: String, left: [String], right: [String]) -> String? {
         let lowerTyped = normalize(typed), lowerCurrent = normalize(current)
         guard let r1 = right.first, let r1i = lexicon.index[r1], typed.count >= 2, typed.count <= 24,
               let t = encode(lowerTyped), !user.keep.contains(lowerTyped), !user.keep.contains(lowerCurrent),
               CasePattern(typed) != .mixed, CasePattern(typed) != .upper, !lowerCurrent.contains(" ") else { return nil }
+        // A confusable real word left as typed is judged only against the other members of its set.
+        if lowerCurrent == lowerTyped, Engine.confusionIndex[lowerCurrent] != nil, confusableEnabledSets?.contains("off") != true {
+            return confusable(current: current, left: left, right: right)
+        }
         let typedKnown = isKnown(lowerTyped)
         if lowerTyped.hasSuffix("'s"), isKnown(String(lowerTyped.dropLast(2))) { return nil }
         if !lexicon.contains(lowerCurrent) && isKnown(lowerCurrent) { return nil } // the user's own word

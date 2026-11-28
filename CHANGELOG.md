@@ -4,6 +4,21 @@ All notable changes to Sandalphon are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The menu bar icon is now the wing and text cursor from the app icon.
+
+### Added
+- With the diagnostics log on, each key press records where it came from (a keyboard or software that types),
+  never which key, to help with reports of typing that is not corrected.
+
+### Added
+- Install with Homebrew: `brew install --cask iftatbhuiyan/tap/sandalphon`.
+
+### Added
+- A browser demo: the engine compiled to WebAssembly (`scripts/build-web.sh`, docs/WEB.md).
+
 ## [1.1.0] - 2026-11-27
 
 ### Added

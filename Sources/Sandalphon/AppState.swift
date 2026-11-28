@@ -5,13 +5,14 @@ import Sparkle
 import TypeEngine
 
 enum Pane: String, CaseIterable, Identifiable {
-    case overview, typing, apps, privacy
+    case overview, typing, shortcuts, apps, privacy
     var id: String { rawValue }
     var title: String {
         switch self {
         case .overview: return "General"
         case .typing: return "Typing"
         case .apps: return "Apps"
+        case .shortcuts: return "Shortcuts"
         case .privacy: return "Privacy"
         }
     }
@@ -20,6 +21,7 @@ enum Pane: String, CaseIterable, Identifiable {
         case .overview: return "gearshape"
         case .typing: return "keyboard"
         case .apps: return "square.grid.2x2"
+        case .shortcuts: return "text.badge.plus"
         case .privacy: return "hand.raised"
         }
     }
@@ -39,6 +41,8 @@ final class AppState: ObservableObject {
     let updater: SPUStandardUpdaterController? = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil
         ? SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil) : nil
     @Published var automaticUpdates = true
+    /// Text shortcuts, saved to `ShortcutStore.url` whenever they change.
+    @Published var shortcuts: [Shortcut] = ShortcutStore.load()
     /// Recent corrections, for the menu. Memory only; never saved or logged.
     @Published var corrections: [TypingSession.Correction] = []
     /// Whether the "star on GitHub" note on the General page has been hidden. Kept on this Mac only.
@@ -148,8 +152,15 @@ final class AppState: ObservableObject {
         pushSettings()
     }
 
+    func updateShortcuts(_ list: [Shortcut]) {
+        shortcuts = list
+        ShortcutStore.save(list)
+        controller.update(shortcuts: ShortcutStore.dictionary(list))
+    }
+
     private func pushSettings() {
         controller.update(settings: settings)
+        controller.update(shortcuts: ShortcutStore.dictionary(shortcuts))
         if let front = NSWorkspace.shared.frontmostApplication {
             controller.frontmostChanged(bundleID: front.bundleIdentifier, pid: front.processIdentifier)
         }

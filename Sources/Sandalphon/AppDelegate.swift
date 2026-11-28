@@ -92,9 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     private func updateStatusIcon() {
         guard let button = statusItem.button else { return }
-        let name = state.trusted ? "character.cursor.ibeam" : "exclamationmark.triangle"
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: "Sandalphon: \(state.statusText)")
+        let image = state.trusted ? MenuBarGlyph.image()
+            : NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
         image?.isTemplate = true
+        image?.accessibilityDescription = "Sandalphon: \(state.statusText)"
         button.image = image
         button.appearsDisabled = state.trusted && !state.settings.enabled
         button.toolTip = "Sandalphon: \(state.statusText)"

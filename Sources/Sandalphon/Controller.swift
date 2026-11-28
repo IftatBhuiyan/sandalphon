@@ -52,6 +52,7 @@ final class Controller {
     private var appExcluded = false
     private var handsOff = false          // secure or search field
     private var singleLine = false
+    private var shortcuts: [String: String] = [:]
     /// Receives a copy of the recent corrections (main thread) whenever they change. Memory only.
     var onHistory: (([TypingSession.Correction]) -> Void)?
     private var historyVersionSent = -1
@@ -113,9 +114,17 @@ final class Controller {
         onKeyThread {
             let s = TypingSession(engine: engine)
             s.lazySuggestions = true
+            s.shortcuts = self.shortcuts
             self.session = s
             self.userModelURL = userModelURL
             self.applySettings()
+        }
+    }
+
+    func update(shortcuts: [String: String]) {
+        onKeyThread {
+            self.shortcuts = shortcuts
+            self.session?.shortcuts = shortcuts
         }
     }
 
@@ -192,6 +201,15 @@ final class Controller {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
+        }
+        if Debug.enabled, type == .keyDown, event.getIntegerValueField(.eventSourceUserData) != Controller.marker {
+            // Where a key came from, never which key: enough to tell a keyboard from software that types.
+            var n = 0
+            var buffer = [UniChar](repeating: 0, count: 64)
+            event.keyboardGetUnicodeString(maxStringLength: 64, actualStringLength: &n, unicodeString: &buffer)
+            Debug.log("key zeroCode=\(event.getIntegerValueField(.keyboardEventKeycode) == 0) textLength=\(n) "
+                + "source=\(event.getIntegerValueField(.eventSourceStateID)) pid=\(event.getIntegerValueField(.eventSourceUnixProcessID)) "
+                + "keyboardType=\(event.getIntegerValueField(.keyboardEventKeyboardType)) active=\(active) handsOff=\(handsOff)")
         }
         guard type == .keyDown, event.getIntegerValueField(.eventSourceUserData) != Controller.marker,
               active, let session else { return pass }
@@ -560,6 +578,7 @@ final class Controller {
         handsOff = info.map { $0.isSecure || $0.isSearch } ?? false
         singleLine = info?.isSingleLine ?? false
         session?.capitalizeFieldStart = !singleLine
+        session?.multiline = !singleLine
     }
 
     /// Runs once the key has been released to the app: compute suggestions, then locate the caret and
