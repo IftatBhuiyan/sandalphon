@@ -476,12 +476,12 @@ final class Controller {
     private func publishHistory() {
         guard let session, let onHistory else { return }
         // Entries also drop out of reach as typing goes on, so that counts as a change too.
-        let reachable = session.history.filter { session.canRevertInPlace($0.id) }.count
-        let version = session.historyVersion &* 16 &+ reachable
+        let reachable = session.revertibleIDs()
+        let version = session.historyVersion &* 16 &+ reachable.count
         guard version != historyVersionSent else { return }
         historyVersionSent = version
         // Entries too far back to change in place are offered as "don't correct again" only.
-        let copy = session.history.map { c in session.canRevertInPlace(c.id) ? c : c.detached() }
+        let copy = session.history.map { c in reachable.contains(c.id) ? c : c.detached() }
         DispatchQueue.main.async { onHistory(copy) }
     }
 

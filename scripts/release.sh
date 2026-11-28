@@ -15,7 +15,13 @@ DMG="build/Sandalphon-$VERSION.dmg"
 [[ -f "$KEY" ]] || { echo "update signing key not found at $KEY" >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "commit or stash your changes first" >&2; exit 1; }
 grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "CHANGELOG.md has no section for $VERSION" >&2; exit 1; }
-if [[ $DRY == 0 ]] && git rev-parse "$TAG" >/dev/null 2>&1; then echo "$TAG already exists" >&2; exit 1; fi
+# A tag left by a run that failed before publishing is fine, as long as it is this commit and unpublished.
+if [[ $DRY == 0 ]] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+  [[ "$(git rev-parse "$TAG^{commit}")" == "$(git rev-parse HEAD)" ]] || { echo "$TAG exists on another commit" >&2; exit 1; }
+  # Carry on only when GitHub confirms there is no release yet; any other answer (or an error) stops here.
+  status="$(gh api "repos/$REPO/releases/tags/$TAG" --silent -i 2>/dev/null | head -1 | awk '{print $2}')" || true
+  [[ "$status" == 404 ]] || { echo "$TAG already has a release, or GitHub could not be asked (HTTP ${status:-none})" >&2; exit 1; }
+fi
 
 swift test -c release
 scripts/build-app.sh --universal --notarize
@@ -47,7 +53,8 @@ XML
 echo "wrote build/appcast.xml"
 
 if [[ $DRY == 1 ]]; then echo "dry run: not tagging or publishing"; exit 0; fi
-git tag -a "$TAG" -m "Sandalphon $VERSION"
+# Safe to run again if publishing failed after the tag was pushed.
+git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git tag -a "$TAG" -m "Sandalphon $VERSION"
 git push origin "$TAG"
 # A copy under a fixed name, so the website can link to releases/latest/download/Sandalphon.dmg.
 cp "$DMG" build/Sandalphon.dmg

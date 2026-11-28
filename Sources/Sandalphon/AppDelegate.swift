@@ -90,8 +90,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     // MARK: - Menus
 
+    private var iconState: (trusted: Bool, enabled: Bool, status: String)?
+
+    /// Redraws the menu bar icon, but only when what it shows has changed (this runs every second).
     private func updateStatusIcon() {
         guard let button = statusItem.button else { return }
+        let now = (trusted: state.trusted, enabled: state.settings.enabled, status: state.statusText)
+        if let last = iconState, last == now { return }
+        iconState = now
         let image = state.trusted ? MenuBarGlyph.image()
             : NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
         image?.isTemplate = true

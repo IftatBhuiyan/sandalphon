@@ -5,8 +5,17 @@
 # Xcode's own Swift is left alone: this script calls the open-source toolchain by path.
 set -euo pipefail
 OUT="${1:?usage: scripts/build-web.sh OUT_DIR}"
-mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
+mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd -P)"
 cd "$(dirname "$0")/.."
+# OUT is wiped, so refuse your home folder or anything that contains this checkout.
+# Compared by identity, not spelling, so another path to the same folder is caught too.
+dir="$(pwd -P)"
+while :; do
+  [[ "$OUT" -ef "$dir" ]] && { echo "refusing to replace $OUT: it contains this checkout" >&2; exit 2; }
+  [[ "$dir" == / ]] && break
+  dir="$(dirname "$dir")"
+done
+[[ "$OUT" -ef "$HOME" ]] && { echo "refusing to replace your home folder" >&2; exit 2; }
 SWIFT_VERSION=6.4.3
 TOOLCHAIN="$HOME/Library/Developer/Toolchains/swift-$SWIFT_VERSION-RELEASE.xctoolchain/usr/bin"
 SDK="swift-$SWIFT_VERSION-RELEASE_wasm"

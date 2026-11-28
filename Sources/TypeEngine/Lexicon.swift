@@ -23,10 +23,6 @@ func encode(_ s: String) -> [UInt8]? {
     return out
 }
 
-func decode(_ b: [UInt8]) -> String {
-    String(decoding: b.map { $0 == apostropheCode ? UInt8(39) : $0 + 97 }, as: UTF8.self)
-}
-
 /// Normalises a typed word for lookup: lowercase with straight apostrophes.
 public func normalize(_ s: String) -> String {
     s.lowercased().replacingOccurrences(of: "\u{2019}", with: "'").replacingOccurrences(of: "\u{2018}", with: "'")
@@ -36,7 +32,6 @@ public func normalize(_ s: String) -> String {
 public final class Lexicon {
     public private(set) var words: [String] = []
     var bytes: [[UInt8]] = []
-    var counts: [Double] = []
     var logP: [Float] = []
     var prob: [Float] = []
     var index: [String: Int32] = [:]
@@ -63,9 +58,9 @@ public final class Lexicon {
     var conv2: [UInt64: Float] = [:]
     var conv3: [UInt64: Float] = [:]
     // Followers, most frequent first, as ranges into flat arrays.
-    var f2Word: [Int32] = [], f2Count: [Float] = []
+    var f2Word: [Int32] = []
     var f2Range: [Int32: Range<Int>] = [:]
-    var f3Word: [Int32] = [], f3Count: [Float] = []
+    var f3Word: [Int32] = []
     var f3Range: [UInt64: Range<Int>] = [:]
 
     static let shortNames: Set<String> = Set("john paul adam alex andy anne sean kate lisa rome ohio iowa utah iraq iran cuba peru greg phil neil juan doug joel sara joan karl hugh luis owen leon ivan nina noah evan erik kurt hugo jose gary dave matt".split(separator: " ").map(String.init))
@@ -73,15 +68,22 @@ public final class Lexicon {
 
     public var count: Int { words.count }
 
+    /// A data file's text, without the byte-order mark some editors add at the start.
+    static func text(_ url: URL) throws -> String {
+        var text = try String(contentsOf: url, encoding: .utf8)
+        if text.hasPrefix("\u{FEFF}") { text.removeFirst() }
+        return text
+    }
+
     public init(dataDirectory: URL) throws {
         var table: [String: Double] = [:]
         var order: [String] = []
 
-        let uni = try String(contentsOf: dataDirectory.appendingPathComponent("unigrams.txt"), encoding: .utf8)
+        let uni = try Lexicon.text(dataDirectory.appendingPathComponent("unigrams.txt"))
         for line in uni.split(separator: "\n") {
             let parts = line.split(separator: " ")
             guard parts.count == 2, let c = Double(parts[1]) else { continue }
-            let w = String(parts[0]).replacingOccurrences(of: "\u{FEFF}", with: "")
+            let w = String(parts[0])
             guard encode(w) != nil else { continue }
             if w.count == 1 && w != "a" && w != "i" { continue }
             if w.contains("'") { continue } // contractions come from extra.txt with real counts
@@ -139,7 +141,6 @@ public final class Lexicon {
             let i = Int32(words.count)
             words.append(w)
             bytes.append(encode(w)!)
-            counts.append(c)
             // Half web text, half conversation, so everyday words are not drowned out by web vocabulary.
             let p = convTotal > 0 ? 0.5 * c / total + 0.5 * (convCount[w] ?? 0) / convTotal : c / total
             prob.append(Float(p))
@@ -152,12 +153,12 @@ public final class Lexicon {
         }
         for i in 0..<words.count { insert(Int32(i)) }
 
-        let bi = try String(contentsOf: dataDirectory.appendingPathComponent("bigrams.txt"), encoding: .utf8)
+        let bi = try Lexicon.text(dataDirectory.appendingPathComponent("bigrams.txt"))
         var lists: [Int32: [(word: Int32, count: Float)]] = [:]
         for line in bi.split(separator: "\n") {
             let parts = line.split(separator: " ")
             guard parts.count == 3, let c = Float(parts[2]),
-                  let a = index[String(parts[0]).replacingOccurrences(of: "\u{FEFF}", with: "")],
+                  let a = index[String(parts[0])],
                   let b = index[String(parts[1])] else { continue }
             bigram[Lexicon.key(a, b)] = c
             bigramSum[a, default: 0] += c
@@ -177,7 +178,7 @@ public final class Lexicon {
         if let data = try? Data(contentsOf: dataDirectory.appendingPathComponent("conv2.bin"), options: .mappedIfSafe) {
             let n = data.count / 12
             conv2.reserveCapacity(n)
-            f2Word.reserveCapacity(n); f2Count.reserveCapacity(n)
+            f2Word.reserveCapacity(n)
             data.withUnsafeBytes { raw in
                 var current: Int32 = -2, from = 0
                 for r in 0..<n {
@@ -190,7 +191,7 @@ public final class Lexicon {
                         current = a; from = f2Word.count
                     }
                     conv2[Lexicon.key(a, b)] = c
-                    f2Word.append(b); f2Count.append(c)
+                    f2Word.append(b)
                 }
                 if current >= 0 { f2Range[current] = from..<f2Word.count }
             }
@@ -198,7 +199,7 @@ public final class Lexicon {
         if let data = try? Data(contentsOf: dataDirectory.appendingPathComponent("conv3.bin"), options: .mappedIfSafe) {
             let n = data.count / 16
             conv3.reserveCapacity(n)
-            f3Word.reserveCapacity(n); f3Count.reserveCapacity(n)
+            f3Word.reserveCapacity(n)
             data.withUnsafeBytes { raw in
                 var current: UInt64 = .max, from = 0
                 for r in 0..<n {
@@ -213,7 +214,7 @@ public final class Lexicon {
                         current = ab; from = f3Word.count
                     }
                     conv3[Lexicon.key3(a, b, c)] = k
-                    f3Word.append(c); f3Count.append(k)
+                    f3Word.append(c)
                 }
                 if current != .max { f3Range[current] = from..<f3Word.count }
             }

@@ -217,14 +217,20 @@ public final class Engine {
         let lex = lexicon
         let width = n + 1
         let maxDepth = n + 3
-        var rows = [Float](repeating: 0, count: (maxDepth + 1) * width)
+        // Hot loop: a raw buffer and local copies avoid a uniqueness check on every write and a class or
+        // global read on every node.
+        let rows = UnsafeMutableBufferPointer<Float>.allocate(capacity: (maxDepth + 1) * width)
+        rows.initialize(repeating: 0)
+        defer { rows.deallocate() }
+        let tChar = lex.tChar, tFirst = lex.tFirst, tNext = lex.tNext, tWord = lex.tWord
+        let transposition = KeyboardModel.transposition
         let extra = keyboard.extraCosts(t)
         for j in 1...n { rows[j] = rows[j - 1] + extra[j - 1] }
         var out: [Match] = []
         let sub = keyboard.sub
 
         func visit(_ node: Int32, _ d: Int, _ parent: UInt8, _ parentMin: Float) {
-            let c = lex.tChar[Int(node)]
+            let c = tChar[Int(node)]
             let cur = d * width, prev = (d - 1) * width
             let omit = keyboard.omit(c, parent: parent, pos: d - 1)
             rows[cur] = rows[prev] + omit
@@ -239,34 +245,34 @@ public final class Engine {
                 let ins = rows[cur + j - 1] + extra[j - 1]
                 if ins < v { v = ins }
                 if d >= 2 && j >= 2 && c == t[j - 2] && parent == tc && c != parent {
-                    let tr = rows[(d - 2) * width + j - 2] + KeyboardModel.transposition
+                    let tr = rows[(d - 2) * width + j - 2] + transposition
                     if tr < v { v = tr }
                 }
                 rows[cur + j] = v
                 if v < minV { minV = v }
             }
             // A transposition can reach back to the row above, so that row must be hopeless too.
-            if minV > maxCost && parentMin + KeyboardModel.transposition > maxCost { return }
+            if minV > maxCost && parentMin + transposition > maxCost { return }
             let total = rows[cur + n]
             if total <= maxCost {
                 if prefixMode {
                     if d >= n - 1 { out.append(Match(node: node, word: -1, cost: total)) }
-                } else if lex.tWord[Int(node)] >= 0 {
-                    out.append(Match(node: node, word: lex.tWord[Int(node)], cost: total))
+                } else if tWord[Int(node)] >= 0 {
+                    out.append(Match(node: node, word: tWord[Int(node)], cost: total))
                 }
             }
             guard d < maxDepth else { return }
-            var child = lex.tFirst[Int(node)]
+            var child = tFirst[Int(node)]
             while child >= 0 {
                 visit(child, d + 1, c, minV)
-                child = lex.tNext[Int(child)]
+                child = tNext[Int(child)]
             }
         }
 
-        var child = lex.tFirst[0]
+        var child = tFirst[0]
         while child >= 0 {
             visit(child, 1, 255, 0)
-            child = lex.tNext[Int(child)]
+            child = tNext[Int(child)]
         }
         return out
     }
@@ -496,16 +502,15 @@ public final class Engine {
         let known = isKnown(lower)
         let typedP = known ? probability(lower, lexicon.index[lower], ctx) : 0
         var comps = completions(lower: lower, t: t, ctx: ctx)
-        // When the likeliest ending is a single letter away ("wan" -> "want"), offering the longer, less
-        // likely ones instead would only mislead.
-        if let top = comps.first, top.key.count - lower.count < 2,
-           let next = comps.first(where: { $0.key.count - lower.count >= 2 }), top.p > next.p * 3 {
-            comps = []
-        }
         if eager {
             // The user asked to see options: offer everything reasonable, including near-misses of real words.
-            comps = completions(lower: lower, t: t, ctx: ctx)
         } else {
+            // When the likeliest ending is a single letter away ("wan" -> "want"), offering the longer, less
+            // likely ones instead would only mislead.
+            if let top = comps.first, top.key.count - lower.count < 2,
+               let next = comps.first(where: { $0.key.count - lower.count >= 2 }), top.p > next.p * 3 {
+                comps = []
+            }
             comps = comps.filter { c in
                 guard c.key.count - lower.count >= 2 else { return false }
                 if known { return c.p > typedP * 4 }
