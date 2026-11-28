@@ -11,6 +11,9 @@ the most important thing about it.
 - It learns words and short phrases you use often and stores those counts in
   `~/Library/Application Support/Sandalphon/user.json`, readable only by your account. You can inspect or
   erase it from Settings › Privacy.
+- Text shortcuts you create in Settings › Shortcuts are stored in
+  `~/Library/Application Support/Sandalphon/shortcuts.json`, readable only by your account. They are only what
+  you entered there, never anything typed elsewhere, and can be deleted from Settings › Privacy.
 - Password fields are invisible to it: macOS withholds their keystrokes from every app.
 - It contains no analytics, telemetry or crash reporting.
 

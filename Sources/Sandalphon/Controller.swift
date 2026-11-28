@@ -52,6 +52,7 @@ final class Controller {
     private var appExcluded = false
     private var handsOff = false          // secure or search field
     private var singleLine = false
+    private var shortcuts: [String: String] = [:]
     /// We started typing without knowing what is in the field; keep trying to find out between keys.
     private var blind = false
     private var generation: UInt64 = 0
@@ -110,9 +111,17 @@ final class Controller {
         onKeyThread {
             let s = TypingSession(engine: engine)
             s.lazySuggestions = true
+            s.shortcuts = self.shortcuts
             self.session = s
             self.userModelURL = userModelURL
             self.applySettings()
+        }
+    }
+
+    func update(shortcuts: [String: String]) {
+        onKeyThread {
+            self.shortcuts = shortcuts
+            self.session?.shortcuts = shortcuts
         }
     }
 
@@ -506,6 +515,7 @@ final class Controller {
         handsOff = info.map { $0.isSecure || $0.isSearch } ?? false
         singleLine = info?.isSingleLine ?? false
         session?.capitalizeFieldStart = !singleLine
+        session?.multiline = !singleLine
     }
 
     /// Runs once the key has been released to the app: compute suggestions, then locate the caret and

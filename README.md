@@ -35,6 +35,8 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
   on, or select a word first to see alternatives. Right-click a selection and choose *Services › Fix Typos with
   Sandalphon* to correct a whole passage.
 - **Learns how you write.** Your own words and phrases, kept in one file on your Mac that you can read or erase.
+- **Text shortcuts.** Type `;addr` and a space and it becomes your address. Add them in Settings › Shortcuts;
+  Delete straight after puts the shortcut back.
 - **Knows when to stay out.** It is off in terminals, code editors and password managers by default, ignores
   password fields, search boxes and address bars, and leaves URLs, emails, paths and `camelCase` alone.
 
