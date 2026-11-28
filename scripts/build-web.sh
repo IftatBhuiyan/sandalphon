@@ -24,7 +24,8 @@ wasm-opt -Oz --strip-debug --strip-producers --enable-bulk-memory --enable-sign-
   --enable-nontrapping-float-to-int .build-wasm/release/sandalphon-web.wasm -o "$WORK/engine.wasm"
 
 rm -rf "$OUT"; mkdir -p "$OUT/data" "$OUT/wasi"
-COMMIT="$(git rev-parse --short HEAD)$([[ -n "$(git status --porcelain)" ]] && echo "+local changes")"
+COMMIT="$(git rev-parse --short HEAD)"
+[[ -z "$(git status --porcelain)" ]] || COMMIT="$COMMIT+local changes"
 ENGINE="engine-$(shasum -a 256 "$WORK/engine.wasm" | cut -c1-10).wasm.gz"   # new name when it changes
 gzip -9 -c "$WORK/engine.wasm" > "$OUT/$ENGINE"
 for f in "${DATA[@]}"; do gzip -9 -c "Data/$f" > "$OUT/data/$f.gz"; done
