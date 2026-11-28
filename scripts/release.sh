@@ -15,7 +15,11 @@ DMG="build/Sandalphon-$VERSION.dmg"
 [[ -f "$KEY" ]] || { echo "update signing key not found at $KEY" >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "commit or stash your changes first" >&2; exit 1; }
 grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "CHANGELOG.md has no section for $VERSION" >&2; exit 1; }
-if [[ $DRY == 0 ]] && git rev-parse "$TAG" >/dev/null 2>&1; then echo "$TAG already exists" >&2; exit 1; fi
+# A tag left by a run that failed before publishing is fine, as long as it is this commit and unpublished.
+if [[ $DRY == 0 ]] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+  [[ "$(git rev-parse "$TAG^{commit}")" == "$(git rev-parse HEAD)" ]] || { echo "$TAG exists on another commit" >&2; exit 1; }
+  ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 || { echo "$TAG is already published" >&2; exit 1; }
+fi
 
 swift test -c release
 scripts/build-app.sh --universal --notarize

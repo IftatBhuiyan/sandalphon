@@ -560,8 +560,6 @@ final class Controller {
         guard active else { return }
         let gen = generation
         axQueue.asyncAfter(deadline: .now() + delay) {
-            // A key has arrived since: this read would be thrown away, so do not queue it ahead of the next.
-            guard gen == self.generation else { return }
             let info = self.reader.read()
             self.onKeyThread {
                 guard gen == self.generation, let session = self.session else { return }

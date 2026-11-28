@@ -8,7 +8,14 @@ OUT="${1:?usage: scripts/build-web.sh OUT_DIR}"
 mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
 cd "$(dirname "$0")/.."
 # OUT is wiped, so refuse your home folder or anything that contains this checkout.
-if [[ "$OUT" == "$HOME" || "$PWD/" == "${OUT%/}/"* ]]; then echo "refusing to replace $OUT" >&2; exit 2; fi
+# Compared by identity, not spelling, so another path to the same folder is caught too.
+dir="$PWD"
+while :; do
+  [[ "$OUT" -ef "$dir" ]] && { echo "refusing to replace $OUT: it contains this checkout" >&2; exit 2; }
+  [[ "$dir" == / ]] && break
+  dir="$(dirname "$dir")"
+done
+[[ "$OUT" -ef "$HOME" ]] && { echo "refusing to replace your home folder" >&2; exit 2; }
 SWIFT_VERSION=6.4.3
 TOOLCHAIN="$HOME/Library/Developer/Toolchains/swift-$SWIFT_VERSION-RELEASE.xctoolchain/usr/bin"
 SDK="swift-$SWIFT_VERSION-RELEASE_wasm"
