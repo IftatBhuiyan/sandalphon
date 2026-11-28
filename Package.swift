@@ -23,6 +23,8 @@ let package = Package(
         ),
         // Command-line quality checks used by scripts/benchmark.sh.
         .executableTarget(name: "sandalphon-eval", dependencies: ["TypeEngine"]),
+        // The engine as WebAssembly for the website demo (scripts/build-web.sh).
+        .executableTarget(name: "sandalphon-web", dependencies: ["TypeEngine"]),
         .testTarget(name: "TypeEngineTests", dependencies: ["TypeEngine"]),
     ]
 )

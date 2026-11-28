@@ -16,6 +16,9 @@ All notable changes to Sandalphon are recorded here. The format follows
 ### Added
 - Install with Homebrew: `brew install --cask iftatbhuiyan/tap/sandalphon`.
 
+### Added
+- A browser demo: the engine compiled to WebAssembly (`scripts/build-web.sh`, docs/WEB.md).
+
 ## [1.1.0] - 2026-11-27
 
 ### Added
