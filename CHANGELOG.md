@@ -13,6 +13,9 @@ All notable changes to Sandalphon are recorded here. The format follows
 - With the diagnostics log on, each key press records where it came from (a keyboard or software that types),
   never which key, to help with reports of typing that is not corrected.
 
+### Added
+- Install with Homebrew: `brew install --cask iftatbhuiyan/tap/sandalphon`.
+
 ## [1.1.0] - 2026-11-27
 
 ### Added

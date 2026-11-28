@@ -23,3 +23,10 @@ The script runs the tests, builds a universal app, signs and notarizes the DMG, 
 updater, writes `appcast.xml`, tags the commit and publishes a GitHub release with both files attached.
 Installed copies find the new version through
 `https://github.com/<owner>/<repo>/releases/latest/download/appcast.xml`.
+
+## Homebrew
+
+`release.sh` finishes by running `scripts/update-tap.sh`, which sets the version and sha256 of the cask in
+[IftatBhuiyan/homebrew-tap](https://github.com/IftatBhuiyan/homebrew-tap) from the published DMG. If it fails,
+the release itself is fine; run `scripts/update-tap.sh <version>` once the problem is fixed. The cask has
+`auto_updates true`, so Homebrew leaves updating to Sparkle.
