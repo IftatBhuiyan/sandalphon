@@ -647,6 +647,7 @@ public final class Engine {
     var confusableMargin: Float = env("SANDALPHON_CONF_MARGIN") ?? 10
     /// How much more often the replacement must be seen with these exact neighbours than the word as typed.
     var confusableRatio: Float = env("SANDALPHON_CONF_RATIO") ?? 6
+    var confusableRight = Int(env("SANDALPHON_CONF_RIGHT") ?? 2)
     /// How many times the replacement must have been seen with both neighbours at once ("going to lose you").
     var confusableSpan: Float = env("SANDALPHON_CONF_SPAN") ?? 1
     var confusableEnabledSets: Set<String>? = ProcessInfo.processInfo.environment["SANDALPHON_CONF_SETS"]
@@ -659,7 +660,8 @@ public final class Engine {
     /// `left` is up to two words before (or the sentence-start token), `right` one or two words after.
     public func confusable(current: String, left: [String], right: [String]) -> String? {
         let lower = normalize(current)
-        guard let set = Engine.confusionIndex[lower], let r1 = right.first, let r1i = lexicon.index[r1],
+        // Two following words, not one: with only one, "Their lovely hum" reads as "They're lovely".
+        guard right.count >= confusableRight, let set = Engine.confusionIndex[lower], let r1 = right.first, let r1i = lexicon.index[r1],
               let ci = lexicon.index[lower], !user.keep.contains(lower),
               CasePattern(current) != .upper, CasePattern(current) != .mixed else { return nil }
         if let only = confusableEnabledSets, !only.contains(set[0]) { return nil }

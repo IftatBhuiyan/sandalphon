@@ -77,7 +77,8 @@ if let i = args.firstIndex(of: "--retro"), i + 1 < args.count {
         for k in 0..<(words.count - 1) {
             let left = Array((["<s>"] + words[..<k]).suffix(2)), right = Array(words[(k + 1)...].prefix(2))
             checked += 1
-            if let alt = engine.reconsider(typed: words[k], current: words[k], left: left, right: right) {
+            let firstLook = engine.reconsider(typed: words[k], current: words[k], left: left, right: Array(right.prefix(1)))
+            if let alt = firstLook ?? (right.count > 1 ? engine.reconsider(typed: words[k], current: words[k], left: left, right: right) : nil) {
                 changedGood += 1
                 if bad.count < 40 { bad.append("\(left.joined(separator: " ")) [\(words[k])->\(alt)] \(right.joined(separator: " "))") }
             }
@@ -118,13 +119,16 @@ if let i = args.firstIndex(of: "--confusables"), i + 1 < args.count {
             checked += 1
             let left = Array((["<s>"] + words[..<k]).suffix(2)), right = Array(words[(k + 1)...].prefix(2))
             uses[n] += 1
-            if let alt = engine.reconsider(typed: words[k], current: words[k], left: left, right: right) {
+            // The app looks once when one word follows and again when two do; either can change the word.
+            let firstLook = engine.reconsider(typed: words[k], current: words[k], left: left, right: Array(right.prefix(1)))
+            if let alt = firstLook ?? (right.count > 1 ? engine.reconsider(typed: words[k], current: words[k], left: left, right: right) : nil) {
                 changed[n] += 1
                 if examples.count < 40 { examples.append("\(left.joined(separator: " ")) [\(words[k])->\(alt)] \(right.joined(separator: " "))") }
             }
             for other in sets[n] where other != words[k] {
                 planted[n] += 1
-                let alt = engine.reconsider(typed: other, current: other, left: left, right: right)?.lowercased()
+                let alt = (engine.reconsider(typed: other, current: other, left: left, right: Array(right.prefix(1)))
+                    ?? (right.count > 1 ? engine.reconsider(typed: other, current: other, left: left, right: right) : nil))?.lowercased()
                 if alt == words[k] { fixed[n] += 1 } else if alt != nil { wrong[n] += 1 }
             }
         }
