@@ -616,7 +616,7 @@ private struct PrivacyPane: View {
             Section("Your typing stays on this Mac") {
                 Label("Nothing you type is ever sent anywhere. The only network use is checking GitHub for a newer version, which you can switch off under General. There are no analytics, no usage counts and no crash reports.", systemImage: "lock")
                 Label("It never sees password fields: macOS blocks them for every app.", systemImage: "key")
-                Label("It remembers words and short phrases you use often, so suggestions fit how you write. It does not keep what you wrote.", systemImage: "brain")
+                Label("It remembers words and short phrases you use more than once, so suggestions fit how you write. Something typed only once is never saved, and the file is kept out of Time Machine.", systemImage: "brain")
                 Label("Text shortcuts are kept in their own file, containing only what you entered in Settings › Shortcuts.", systemImage: "text.badge.plus")
             }
             Section("Text shortcuts") {

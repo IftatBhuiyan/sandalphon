@@ -11,6 +11,11 @@ URL="https://github.com/$REPO/releases/download/v$VERSION/Sandalphon-$VERSION.dm
 # Hash what users will actually download, not the local build.
 SHA="$(curl -fsSL "$URL" | shasum -a 256 | cut -d' ' -f1)"
 [[ ${#SHA} == 64 ]] || { echo "could not download $URL" >&2; exit 1; }
+# When the release was built here, the download must be byte-for-byte that build.
+LOCAL="build/Sandalphon-$VERSION.dmg"
+if [[ -f "$LOCAL" ]]; then
+  [[ "$(shasum -a 256 "$LOCAL" | cut -d' ' -f1)" == "$SHA" ]] || { echo "published DMG differs from $LOCAL" >&2; exit 1; }
+fi
 
 # Commit as this repository's author (its GitHub noreply address), never the machine's global identity.
 NAME="$(git config user.name)"; EMAIL="$(git config user.email)"

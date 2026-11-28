@@ -50,7 +50,7 @@ final class Controller {
     private var session: TypingSession?
     private var settings = Settings()
     private var appExcluded = false
-    private var handsOff = false          // secure or search field
+    private var handsOff = false          // secure or search field, or a field of an excluded app
     private var singleLine = false
     private var shortcuts: [String: String] = [:]
     /// Receives a copy of the recent corrections (main thread) whenever they change. Memory only.
@@ -575,7 +575,7 @@ final class Controller {
     }
 
     private func noteField(_ info: FocusInfo?) {
-        handsOff = info.map { $0.isSecure || $0.isSearch } ?? false
+        handsOff = info.map { $0.isSecure || $0.isSearch || settings.isExcluded($0.ownerBundleID) } ?? false
         singleLine = info?.isSingleLine ?? false
         session?.capitalizeFieldStart = !singleLine
         session?.multiline = !singleLine
@@ -661,24 +661,31 @@ final class Controller {
         }
     }
 
-    /// Corrects every typo in a piece of text (the right-click service). Blocks the caller briefly.
+    /// The most text the right-click service will correct at once (a few seconds of work).
+    static let serviceLimit = 20_000
+
+    /// Corrects every typo in a piece of text (the right-click service). Blocks the caller until done, or
+    /// returns the text unchanged if it is too long or takes too long.
+    ///
+    /// The work runs on the key thread, where the engine lives, in small slices so that keys typed meanwhile
+    /// are never held up.
     func fixTypos(in text: String) -> String {
-        guard let runLoop else { return text }
-        var result = text
-        let done = DispatchSemaphore(value: 0)
-        CFRunLoopPerformBlock(runLoop, CFRunLoopMode.commonModes.rawValue) {
-            if let engine = self.session?.engine {
+        guard runLoop != nil, !text.isEmpty, text.count <= Self.serviceLimit else { return text }
+        let job = ServiceJob(text: text)
+        func step() {
+            guard !job.isCancelled else { return }
+            if job.session == nil {
+                guard let engine = session?.engine else { return job.finish(nil) }
                 let scratch = TypingSession(engine: engine)
                 scratch.learningEnabled = false
                 scratch.suggestionsEnabled = false
-                let fixed = scratch.simulate(typing: text + " ")
-                result = String(fixed.dropLast())
+                scratch.seed(textBeforeCaret: "")
+                job.session = scratch
             }
-            done.signal()
+            if job.advance(by: 400) { job.finish(String(job.buffer.dropLast())) } else { onKeyThread(step) }
         }
-        CFRunLoopWakeUp(runLoop)
-        _ = done.wait(timeout: .now() + 2)
-        return result
+        onKeyThread(step)
+        return job.wait(seconds: 10) ?? text
     }
 
     private func hidePanel() {
@@ -703,6 +710,48 @@ enum Debug {
             } else {
                 try? line.write(to: url, atomically: true, encoding: .utf8)
             }
+        }
+    }
+}
+
+/// One run of the right-click service: its state lives on the key thread, its result is handed to the caller.
+private final class ServiceJob {
+    private let chars: [Character]
+    private var index = 0
+    var session: TypingSession?
+    var buffer = ""
+
+    private let lock = NSLock()
+    private let done = DispatchSemaphore(value: 0)
+    private var result: String?
+    private var cancelled = false
+
+    init(text: String) { chars = Array(text + " ") }
+
+    var isCancelled: Bool { lock.withLock { cancelled } }
+
+    /// Types up to `count` more characters. Returns true when all of them have been typed. Key thread only.
+    func advance(by count: Int) -> Bool {
+        guard let session else { return true }
+        let end = min(index + count, chars.count)
+        while index < end {
+            session.type(chars[index], into: &buffer)
+            index += 1
+        }
+        return index == chars.count
+    }
+
+    func finish(_ text: String?) {
+        lock.withLock { result = text }
+        done.signal()
+    }
+
+    /// The corrected text, or nil if it failed or took longer than `seconds`.
+    func wait(seconds: Double) -> String? {
+        let finished = done.wait(timeout: .now() + seconds) == .success
+        return lock.withLock {
+            if !finished { cancelled = true }
+            return finished ? result : nil
         }
     }
 }

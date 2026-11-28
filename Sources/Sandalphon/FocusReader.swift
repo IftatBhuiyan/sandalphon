@@ -14,6 +14,9 @@ struct FocusInfo {
     var caret: CGRect?
     /// Frame of the focused element in Cocoa screen coordinates.
     var frame: CGRect?
+    /// The app that owns the field, when it is not the frontmost app (a panel such as a password manager's
+    /// quick-access window can take keys without becoming frontmost).
+    var ownerBundleID: String?
 
     var isSecure: Bool { subrole == "AXSecureTextField" || role == "AXSecureTextField" }
     /// Browser address bars and search boxes: queries and URLs, not prose.
@@ -86,6 +89,10 @@ final class FocusReader {
         guard let focused = found, CFGetTypeID(focused) == AXUIElementGetTypeID() else { return nil }
         let el = focused as! AXUIElement
         var info = FocusInfo()
+        var owner: pid_t = 0
+        if AXUIElementGetPid(el, &owner) == .success, owner != frontPID {
+            info.ownerBundleID = NSRunningApplication(processIdentifier: owner)?.bundleIdentifier
+        }
         info.role = attribute(el, kAXRoleAttribute as String) as? String
         info.subrole = attribute(el, kAXSubroleAttribute as String) as? String
         if info.isSecure { return info }
