@@ -123,6 +123,7 @@ private struct GeneralPane: View {
         if !state.trusted { return "Needs Accessibility access to work" }
         if !state.settings.enabled { return "Paused: your typing is left alone" }
         if !state.engineReady { return "Starting…" }
+        if !state.settings.autocorrect { return "On, but Autocorrect is switched off under Typing" }
         return "On: correcting as you type, in every app"
     }
 
@@ -175,9 +176,9 @@ private struct GeneralPane: View {
             } header: {
                 Text("Try it")
             } footer: {
-                Note(state.isActive
-                     ? "Words are fixed when you press space. Press Delete straight after to undo one."
-                     : "This works once Sandalphon is on.")
+                Note(!state.isActive ? "This works once Sandalphon is on."
+                     : state.settings.autocorrect ? "Words are fixed when you press space. Press Delete straight after to undo one."
+                     : "Autocorrect is off, so misspellings are left alone. Switch it on under Typing.")
             }
 
             Section("When Sandalphon runs") {
@@ -185,7 +186,7 @@ private struct GeneralPane: View {
                           isOn: Binding(get: { state.launchAtLogin }, set: { state.setLaunchAtLogin($0) }))
                 SwitchRow(title: "Turn off the macOS autocorrect",
                           detail: state.systemAutocorrectOff
-                              ? "Recommended, so the two never correct the same word."
+                              ? "Recommended, so the two don't correct the same word. Open apps pick this up when they next start."
                               : "Recommended: otherwise macOS and Sandalphon may both change the same word.",
                           isOn: Binding(get: { state.systemAutocorrectOff }, set: { state.setSystemAutocorrectOff($0) }))
             }
@@ -354,7 +355,7 @@ private struct TypingPane: View {
                 }
                 if state.settings.mode != .never {
                     SwitchRow(title: "Tab takes the highlighted suggestion",
-                              detail: "In one-line fields Tab still moves to the next field.",
+                              detail: "In one-line fields Tab moves to the next field, unless you asked for suggestions with ⌥ Esc.",
                               isOn: binding(\.tabAccepts))
                 }
             } header: {
@@ -411,7 +412,7 @@ private struct AppsPane: View {
             Section {
                 let list = entries
                 if list.isEmpty {
-                    Text("Sandalphon is on in every app.")
+                    Text("No apps in this list.")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 10)
@@ -441,8 +442,7 @@ private struct AppsPane: View {
                     Button("Add App…", action: add)
                     if !removedDefaults.isEmpty {
                         Button("Restore Defaults") {
-                            let missing = removedDefaults
-                            state.update { s in s.excluded.formUnion(missing) }
+                            state.update { s in s.excluded.formUnion(Settings.defaultExcluded) }
                         }
                         .help("Turn Sandalphon off again in the terminals, code editors and password managers it skips by default.")
                     }
@@ -484,6 +484,7 @@ private struct PrivacyPane: View {
 
     var body: some View {
         Form {
+            SetupBanner(state: state)
             Section("Your typing stays on this Mac") {
                 Label("Nothing you type is ever sent anywhere. The only network use is checking GitHub for a newer version, which you can switch off under General. There are no analytics, no usage counts and no crash reports.", systemImage: "lock")
                 Label("It never sees password fields: macOS blocks them for every app.", systemImage: "key")
@@ -501,7 +502,7 @@ private struct PrivacyPane: View {
             } header: {
                 Text("Learned from you")
             } footer: {
-                Note("Includes the corrections you undid, so they are not made again.")
+                Note("Includes the spelling and grammar fixes you undid, so they are not made again.")
             }
             Section {
                 LabeledContent("Accessibility access") {
