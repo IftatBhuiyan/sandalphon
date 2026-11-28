@@ -17,7 +17,7 @@ jobs:
     name: Test and build
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Swift version
         run: swift --version
       - name: Engine tests
@@ -27,7 +27,7 @@ jobs:
         run: scripts/benchmark.sh
       - name: Build the app (ad-hoc signed)
         run: SANDALPHON_SIGN_IDENTITY=- scripts/build-app.sh --universal
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Sandalphon-unsigned
           path: build/Sandalphon-*.dmg
