@@ -62,6 +62,28 @@ public final class TypingSession {
     public var lazySuggestions = false
     private var lastCorrection: (original: String, replacement: String, delimiter: String)?
 
+    // Recent corrections, newest last, kept in memory only and never more than `historyLimit`.
+    public struct Correction: Identifiable, Equatable {
+        public let id: Int
+        /// What stood there before the correction, and what it became.
+        public let original: String
+        public let replacement: String
+        /// What was typed, for "don't correct this again".
+        let typed: String
+        /// Where the replacement starts in the current run, or nil once the caret has moved and it can no
+        /// longer be found safely.
+        var start: Int?
+        /// Whether it can still be changed back where it stands.
+        public var inPlace: Bool { start != nil }
+    }
+    public private(set) var history: [Correction] = []
+    /// Bumped whenever `history` changes, so a host can tell cheaply when to refresh a copy.
+    public private(set) var historyVersion = 0
+    public static let historyLimit = 10
+    /// How far back from the caret a correction can still be changed in place.
+    public static let revertReach = 300
+    private var nextCorrectionID = 1
+
     // Second thoughts: everything typed since the caret last moved, exactly as it stands in the field, and
     // where each finished word sits in it, so an earlier word can be revised once later words are known.
     private struct Span {
@@ -247,6 +269,13 @@ public final class TypingSession {
             let left = Array(context.suffix(2))
             if edit != nil {
                 docRemove(deleteCount)
+                // A capital at the start of a sentence is not worth listing among corrections.
+                let onlyCapital = !replacedPrevious && final.lowercased() == word.lowercased()
+                    && final.dropFirst() == word.dropFirst()
+                if !onlyCapital {
+                    record(original: original, replacement: final, typed: replacedPrevious ? original : word,
+                           start: replacedPrevious || wordStart != nil ? doc.count : nil)
+                }
                 doc += final
             }
             if !replacedPrevious, let start = wordStart, !final.contains(" "), start + final.count == doc.count {
@@ -328,6 +357,10 @@ public final class TypingSession {
         if let lc = lastCorrection, word.isEmpty {
             lastCorrection = nil
             if learningEnabled { engine.keep(word: lc.original) }
+            if let i = history.lastIndex(where: { $0.replacement == lc.replacement && $0.original == lc.original }) {
+                history.remove(at: i)
+                historyVersion &+= 1
+            }
             let parts = lc.replacement.split(separator: " ").count
             context.removeLast(min(parts, context.count))
             commit(lc.original)
@@ -420,6 +453,8 @@ public final class TypingSession {
         doc = String(chars[..<span.start]) + pending.text + String(chars[end...])
         if learningEnabled { engine.relearn(from: span.text, to: pending.text, context: span.left) }
         let delta = pending.text.count - span.text.count
+        shiftHistory(after: span.start, by: delta, replacing: span.start)
+        record(original: span.text, replacement: pending.text, typed: span.typed, start: span.start)
         spans[pending.index].text = pending.text
         spans[pending.index].looks = 9
         for i in spans.indices where i > pending.index { spans[i].start += delta }
@@ -464,7 +499,75 @@ public final class TypingSession {
         }
     }
 
+    private func record(original: String, replacement: String, typed: String, start: Int?) {
+        history.append(Correction(id: nextCorrectionID, original: original, replacement: replacement, typed: typed, start: start))
+        nextCorrectionID += 1
+        if history.count > TypingSession.historyLimit { history.removeFirst(history.count - TypingSession.historyLimit) }
+        historyVersion &+= 1
+    }
+
+    /// Text in the run changed at `position` by `delta` characters: move the records after it.
+    private func shiftHistory(after position: Int, by delta: Int, replacing changedStart: Int?) {
+        guard delta != 0 || changedStart != nil else { return }
+        var changed = false
+        for i in history.indices {
+            guard let start = history[i].start else { continue }
+            if start == changedStart { history[i].start = nil; changed = true }
+            else if start > position { history[i].start = start + delta; changed = true }
+        }
+        if changed { historyVersion &+= 1 }
+    }
+
+    /// The text the field must end with for `revert` to be safe (compare it with the real field first).
+    public var revertTail: String { String(doc.suffix(100)) }
+
+    /// Changes correction `id` (or, for nil, the most recent one that can be) back to what stood there before,
+    /// and remembers not to make it again. Returns how to edit the field, or nil if it cannot be done in place,
+    /// in which case the word is still remembered.
+    public func revert(_ id: Int? = nil) -> RetroFix? {
+        let found: Int?
+        if let id { found = history.firstIndex { $0.id == id } } else { found = history.lastIndex { $0.inPlace } }
+        guard let index = found else { return nil }
+        let entry = history[index]
+        if learningEnabled { engine.keep(word: entry.typed) }
+        history.remove(at: index)
+        historyVersion &+= 1
+        if lastCorrection?.replacement == entry.replacement { lastCorrection = nil }
+        guard let start = entry.start else { return nil }
+        let chars = Array(doc)
+        let end = start + entry.replacement.count
+        guard end <= chars.count, String(chars[start..<end]) == entry.replacement,
+              chars.count - end <= TypingSession.revertReach else { return nil }
+        doc = String(chars[..<start]) + entry.original + String(chars[end...])
+        let delta = entry.original.count - entry.replacement.count
+        // Keep the look-back bookkeeping in step: the word there is now the original, as typed.
+        if let i = spans.firstIndex(where: { $0.start == start }) {
+            let old = spans[i].text
+            spans[i].text = entry.original
+            spans[i].looks = 9
+            let after = spans.count - 1 - i
+            let slot = context.count - 1 - after
+            if after < 2, !entry.original.contains(" "), context.indices.contains(slot), context[slot] == normalize(old) {
+                context[slot] = normalize(entry.original)
+            }
+            if after == 0, spaceRun == 1 { prevRaw = entry.original }
+        }
+        for i in spans.indices where spans[i].start > start { spans[i].start += delta }
+        if let ws = wordStart, ws > start { wordStart = ws + delta }
+        if let pending = retroPending, spans.indices.contains(pending.index), spans[pending.index].start >= start {
+            retroPending = nil
+            retroConfirmed = false
+        }
+        shiftHistory(after: start, by: delta, replacing: nil)
+        return RetroFix(back: doc.count - (start + entry.original.count), deleteCount: entry.replacement.count,
+                        insert: entry.original)
+    }
+
     private func clearRun() {
+        if history.contains(where: { $0.inPlace }) {
+            for i in history.indices { history[i].start = nil }
+            historyVersion &+= 1
+        }
         doc = ""
         spans = []
         wordStart = nil

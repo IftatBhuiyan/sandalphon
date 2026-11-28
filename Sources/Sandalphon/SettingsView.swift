@@ -231,7 +231,8 @@ private struct TypingPane: View {
                 LabeledContent("Show suggestions", value: "⌥ Esc")
                 LabeledContent("Pick a specific suggestion", value: "⌃1  ⌃2  ⌃3")
                 LabeledContent("Hide suggestions", value: "Esc")
-                LabeledContent("Undo a correction", value: "Backspace")
+                LabeledContent("Undo a correction straight after it", value: "Backspace")
+                LabeledContent("Undo the latest correction, anywhere", value: "⌃⌥Z")
             }
             Section {
                 Button("Open macOS Keyboard Settings…") { NSWorkspace.shared.open(AppState.keyboardURL) }

@@ -139,6 +139,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                 .representedObject = frontID
         }
         menu.addItem(.separator())
+        let recent = state.corrections.reversed()
+        if !recent.isEmpty {
+            let undo = NSMenuItem(title: "Recent Corrections", action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            for c in recent {
+                let title = c.inPlace ? "\u{201C}\(c.replacement)\u{201D} \u{2190} \u{201C}\(c.original)\u{201D}"
+                                      : "Don\u{2019}t correct \u{201C}\(c.original)\u{201D} again"
+                let item = NSMenuItem(title: title, action: #selector(revertCorrection(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = c.id
+                item.toolTip = c.inPlace ? "Change \u{201C}\(c.replacement)\u{201D} back to \u{201C}\(c.original)\u{201D} and stop correcting it"
+                                         : "The text has moved on; this only stops the correction happening again"
+                sub.addItem(item)
+            }
+            sub.addItem(.separator())
+            let hint = NSMenuItem(title: "Change the latest back anywhere with \u{2303}\u{2325}Z", action: nil, keyEquivalent: "")
+            hint.isEnabled = false
+            sub.addItem(hint)
+            undo.submenu = sub
+            menu.addItem(undo)
+        }
         add("Settings…", #selector(openSettings), key: ",")
         if state.updater != nil { add("Check for Updates…", #selector(checkForUpdates)) }
         add("Star on GitHub…", #selector(openRepository))
@@ -198,6 +219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         if let id = sender.representedObject as? String { state.toggleExcluded(id) }
     }
     @objc private func checkForUpdates() { state.checkForUpdates() }
+    @objc private func revertCorrection(_ item: NSMenuItem) { state.controller.revertFromMenu(item.tag) }
     @objc private func openRepository() { state.openRepository() }
     @objc private func openOverview() { showWindow(.overview) }
     @objc private func openSettings() { showWindow(state.trusted ? .typing : .overview) }
