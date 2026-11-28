@@ -85,6 +85,17 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(full(fine), fine)
     }
 
+    func testFixesConfusableWordsFromContext() {
+        // Once the words after it are known, a wrong-but-real word from a confusable set is put right.
+        XCTAssertEqual(type("i dont want to loose you again "), "I don't want to lose you again ")
+        XCTAssertEqual(type("put it over their by the door "), "put it over there by the door ")
+        // Correct uses are left alone, including the ones that are commoner as the other word.
+        for text in ["their house is over there ", "it was too late to call ", "you're welcome to come ",
+                     "we want to go to bed now ", "the dog wagged its tail ", "were you there yesterday "] {
+            XCTAssertEqual(type(text), text, text)
+        }
+    }
+
     func testLeavesGoodTextAlone() {
         let text = "The quick brown fox jumps over the lazy dog. I think we should meet at noon, it's fine. "
         XCTAssertEqual(type(text), text)
