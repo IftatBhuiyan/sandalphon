@@ -79,6 +79,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>SUFeedURL</key><string>https://github.com/$REPO/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key><string>$(cat Resources/sparkle_public_key.txt)</string>
   <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUVerifyUpdateBeforeExtraction</key><true/>
   <key>NSServices</key>
   <array><dict>
     <key>NSMenuItem</key><dict><key>default</key><string>Fix Typos with Sandalphon</string></dict>
@@ -101,6 +102,8 @@ if [[ -n "$IDENTITY" && "$IDENTITY" != "-" ]]; then
   sign() { codesign --force --options runtime --timestamp --sign "$IDENTITY" "$@"; }
 else
   IDENTITY="-"
+  # No hardened runtime here: with it, an ad-hoc signed app cannot load its own Sparkle framework (library
+  # validation needs a Team ID). Releases are always Developer ID signed with the hardened runtime.
   sign() { codesign --force --sign - "$@"; }
 fi
 # Inside out: Sparkle's helpers, then the framework, then the app.

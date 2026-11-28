@@ -27,7 +27,44 @@ public final class UserModel: Codable {
     public static func load(from url: URL) -> UserModel {
         guard let data = try? Data(contentsOf: url),
               let model = try? JSONDecoder().decode(UserModel.self, from: data) else { return UserModel() }
+        model.sanitize()
+        // Files written by older versions kept single uses and were backed up: rewrite them on the next save.
+        model.dirty = true
         return model
+    }
+
+    /// The largest count kept, so a hand-edited file can never make a later `+= 1` overflow.
+    static let countLimit = 1 << 30
+
+    /// Drops impossible counts from a file that may have been edited by hand.
+    private func sanitize() {
+        func clean(_ table: [String: Int]) -> [String: Int] {
+            table.compactMapValues { $0 > 0 ? min($0, Self.countLimit) : nil }
+        }
+        words = clean(words)
+        bigrams = bigrams.compactMapValues { let t = clean($0); return t.isEmpty ? nil : t }
+        trigrams = trigrams.compactMapValues { let t = clean($0); return t.isEmpty ? nil : t }
+        total = min(max(total, 0), Self.countLimit)
+    }
+
+    /// What is written to disk: only words and phrases used more than once. Something typed a single time, such
+    /// as a password in a field that shows it or a recovery phrase, stays in memory for this session and is
+    /// never saved.
+    func persisted() -> UserModel {
+        let copy = UserModel()
+        copy.words = words.filter { $0.value > 1 }
+        func repeated(_ table: [String: [String: Int]]) -> [String: [String: Int]] {
+            table.compactMapValues { next in
+                let kept = next.filter { $0.value > 1 }
+                return kept.isEmpty ? nil : kept
+            }
+        }
+        copy.bigrams = repeated(bigrams)
+        copy.trigrams = repeated(trigrams)
+        copy.keep = keep
+        copy.casing = casing.filter { copy.words[$0.key] != nil }
+        copy.total = copy.words.values.reduce(0, +)
+        return copy
     }
 
     public func save(to url: URL) {
@@ -37,9 +74,14 @@ public final class UserModel: Codable {
         guard dirty else { return }
         prune()
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(self) {
+        if let data = try? JSONEncoder().encode(persisted()) {
             try? data.write(to: url, options: [.atomic])
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            // Kept out of Time Machine, so "Forget Everything" really does forget.
+            var file = url
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? file.setResourceValues(values)
             dirty = false
         }
         #endif
@@ -52,6 +94,7 @@ public final class UserModel: Codable {
     }
 
     func observe(word: String, context: [String]) {
+        guard total < Self.countLimit else { return }
         words[word, default: 0] += 1
         total += 1
         if let prev = context.last {

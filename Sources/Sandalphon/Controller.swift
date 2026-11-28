@@ -50,7 +50,9 @@ final class Controller {
     private var session: TypingSession?
     private var settings = Settings()
     private var appExcluded = false
-    private var handsOff = false          // secure or search field
+    private var handsOff = false          // secure or search field, or a field of an excluded app
+    private var lastFocusCheck: TimeInterval = 0
+    private var excludedOwner = false      // the focused field belongs to an excluded app (a panel)
     private var singleLine = false
     private var shortcuts: [String: String] = [:]
     /// Receives a copy of the recent corrections (main thread) whenever they change. Memory only.
@@ -315,7 +317,16 @@ final class Controller {
               scalar.value >= 0x20, scalar.value != 0x7F, !(0xF700...0xF8FF).contains(scalar.value) else {
             return pass
         }
-        if handsOff { return pass }
+        if handsOff {
+            // Look again now and then, so typing is picked up as soon as focus leaves the field (a panel
+            // dismissed with Esc leaves the same app frontmost and sends no other signal).
+            let now = ProcessInfo.processInfo.systemUptime
+            if now - lastFocusCheck > 0.25 {
+                lastFocusCheck = now
+                requestSeed(after: 0.05)
+            }
+            return pass
+        }
         // We never wait for another app here. If the field has not been read yet, stay out of the way
         // until the next space, from which point everything before the caret is known from the keys alone.
         if session.needsSeed {
@@ -509,6 +520,8 @@ final class Controller {
             let info = self.reader.read()
             self.onKeyThread {
                 guard gen == self.generation, let session = self.session else { return }
+                self.noteField(info)
+                guard !self.handsOff else { return NSSound.beep() }
                 let seen = info?.textBefore?.replacingOccurrences(of: "\u{2019}", with: "'")
                     .replacingOccurrences(of: "\u{00A0}", with: " ")
                 guard info?.selectionLength == 0, let seen, seen.hasSuffix(tail) else {
@@ -530,8 +543,10 @@ final class Controller {
             guard gen == self.generation else { return }
             let info = self.reader.read()
             self.onKeyThread {
+                guard gen == self.generation else { return }
+                self.noteField(info)
                 // Browsers store runs of spaces as non-breaking spaces.
-                guard gen == self.generation, let session = self.session, let word = session.doubleSpaceCandidate,
+                guard !self.handsOff, let session = self.session, let word = session.doubleSpaceCandidate,
                       info?.selectionLength == 0,
                       let text = info?.textBefore?.replacingOccurrences(of: "\u{00A0}", with: " "),
                       text.hasSuffix(word + "  ") else { return }
@@ -562,6 +577,11 @@ final class Controller {
         axQueue.asyncAfter(deadline: .now() + delay) {
             let info = self.reader.read()
             self.onKeyThread {
+                // While hands-off, a newer key must not stop us noticing that focus has moved to a normal field.
+                if gen != self.generation, self.handsOff, info != nil {
+                    self.noteField(info)
+                    if !self.handsOff { self.session?.reset() } // start afresh, reading the field on the next key
+                }
                 guard gen == self.generation, let session = self.session else { return }
                 self.noteField(info)
                 if self.handsOff { return }
@@ -575,7 +595,11 @@ final class Controller {
     }
 
     private func noteField(_ info: FocusInfo?) {
-        handsOff = info.map { $0.isSecure || $0.isSearch } ?? false
+        // A failed read says nothing about where focus is; inside an excluded app's panel, stay out until a
+        // read shows focus has left it.
+        if info == nil && excludedOwner { return }
+        excludedOwner = info.map { settings.isExcluded($0.ownerBundleID) } ?? false
+        handsOff = excludedOwner || (info.map { $0.isSecure || $0.isSearch } ?? false)
         singleLine = info?.isSingleLine ?? false
         session?.capitalizeFieldStart = !singleLine
         session?.multiline = !singleLine
@@ -661,24 +685,31 @@ final class Controller {
         }
     }
 
-    /// Corrects every typo in a piece of text (the right-click service). Blocks the caller briefly.
-    func fixTypos(in text: String) -> String {
-        guard let runLoop else { return text }
-        var result = text
-        let done = DispatchSemaphore(value: 0)
-        CFRunLoopPerformBlock(runLoop, CFRunLoopMode.commonModes.rawValue) {
-            if let engine = self.session?.engine {
+    /// The most text the right-click service will correct at once (a few seconds of work).
+    static let serviceLimit = 20_000
+
+    /// Corrects every typo in a piece of text (the right-click service). Blocks the caller until done. Returns
+    /// nil if the text is too long or the work takes too long, so the selection is left exactly as it was.
+    ///
+    /// The work runs on the key thread, where the engine lives, in small slices so that keys typed meanwhile
+    /// are never held up.
+    func fixTypos(in text: String) -> String? {
+        guard runLoop != nil, !text.isEmpty, text.count <= Self.serviceLimit else { return nil }
+        let job = ServiceJob(text: text)
+        func step() {
+            guard !job.isCancelled else { return }
+            if job.session == nil {
+                guard let engine = session?.engine else { return job.finish(nil) }
                 let scratch = TypingSession(engine: engine)
                 scratch.learningEnabled = false
                 scratch.suggestionsEnabled = false
-                let fixed = scratch.simulate(typing: text + " ")
-                result = String(fixed.dropLast())
+                scratch.seed(textBeforeCaret: "")
+                job.session = scratch
             }
-            done.signal()
+            if job.advance(by: 400) { job.finish(String(job.buffer.dropLast())) } else { onKeyThread(step) }
         }
-        CFRunLoopWakeUp(runLoop)
-        _ = done.wait(timeout: .now() + 2)
-        return result
+        onKeyThread(step)
+        return job.wait(seconds: 10)
     }
 
     private func hidePanel() {
@@ -703,6 +734,48 @@ enum Debug {
             } else {
                 try? line.write(to: url, atomically: true, encoding: .utf8)
             }
+        }
+    }
+}
+
+/// One run of the right-click service: its state lives on the key thread, its result is handed to the caller.
+private final class ServiceJob {
+    private let chars: [Character]
+    private var index = 0
+    var session: TypingSession?
+    var buffer = ""
+
+    private let lock = NSLock()
+    private let done = DispatchSemaphore(value: 0)
+    private var result: String?
+    private var cancelled = false
+
+    init(text: String) { chars = Array(text + " ") }
+
+    var isCancelled: Bool { lock.withLock { cancelled } }
+
+    /// Types up to `count` more characters. Returns true when all of them have been typed. Key thread only.
+    func advance(by count: Int) -> Bool {
+        guard let session else { return true }
+        let end = min(index + count, chars.count)
+        while index < end {
+            session.type(chars[index], into: &buffer)
+            index += 1
+        }
+        return index == chars.count
+    }
+
+    func finish(_ text: String?) {
+        lock.withLock { result = text }
+        done.signal()
+    }
+
+    /// The corrected text, or nil if it failed or took longer than `seconds`.
+    func wait(seconds: Double) -> String? {
+        let finished = done.wait(timeout: .now() + seconds) == .success
+        return lock.withLock {
+            if !finished { cancelled = true }
+            return finished ? result : nil
         }
     }
 }

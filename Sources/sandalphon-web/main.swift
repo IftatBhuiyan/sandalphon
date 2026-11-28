@@ -17,9 +17,14 @@ nonisolated(unsafe) var session: TypingSession?
 nonisolated(unsafe) var text = ""          // everything before the caret
 nonisolated(unsafe) var inbox: UnsafeMutablePointer<UInt8>?
 nonisolated(unsafe) var inboxSize = 0
-nonisolated(unsafe) var out: [UInt8] = []
+nonisolated(unsafe) var out = UnsafeMutableBufferPointer<UInt8>(start: nil, count: 0)
 
-func reply(_ s: String) { out = Array(s.utf8) }
+func reply(_ s: String) {
+    out.deallocate()
+    let bytes = Array(s.utf8)
+    out = .allocate(capacity: bytes.count)
+    _ = out.initialize(from: bytes)
+}
 func received(_ length: Int32) -> String {
     guard let inbox, length > 0 else { return "" }
     return String(decoding: UnsafeBufferPointer(start: inbox, count: Int(length)), as: UTF8.self)
@@ -34,7 +39,7 @@ func spBuffer(_ size: Int32) -> UnsafeMutablePointer<UInt8>? {
     }
     return inbox
 }
-@_expose(wasm, "sp_out_ptr") func spOutPtr() -> UnsafePointer<UInt8>? { out.withUnsafeBufferPointer { $0.baseAddress } }
+@_expose(wasm, "sp_out_ptr") func spOutPtr() -> UnsafePointer<UInt8>? { UnsafePointer(out.baseAddress) }
 @_expose(wasm, "sp_out_len") func spOutLen() -> Int32 { Int32(out.count) }
 
 /// Loads the data. Returns the number of words known, or -1.

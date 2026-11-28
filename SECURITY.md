@@ -5,16 +5,20 @@ the most important thing about it.
 
 ## What it does and does not do
 
-- All processing happens on your Mac. What you type is never written to disk and never sent anywhere.
+- All processing happens on your Mac. What you type is never sent anywhere, and your text itself is never
+  written to disk.
 - The only network request is the update check against this repository's GitHub releases. It can be turned
   off in Settings, and updates are verified with an EdDSA signature before they are installed.
-- It learns words and short phrases you use often and stores those counts in
-  `~/Library/Application Support/Sandalphon/user.json`, readable only by your account. You can inspect or
-  erase it from Settings › Privacy.
+- It learns words and short phrases (up to three words) you use more than once and stores those counts in
+  `~/Library/Application Support/Sandalphon/user.json`, readable only by your account and excluded from Time
+  Machine. A word or phrase typed only once is not saved, with one exception: when you undo a
+  correction, the word you typed is listed so it is not corrected again. You can inspect or erase it from Settings › Privacy.
 - Text shortcuts you create in Settings › Shortcuts are stored in
   `~/Library/Application Support/Sandalphon/shortcuts.json`, readable only by your account. They are only what
   you entered there, never anything typed elsewhere, and can be deleted from Settings › Privacy.
-- Password fields are invisible to it: macOS withholds their keystrokes from every app.
+- Password fields are invisible to it: macOS withholds their keystrokes from every app. A field that shows
+  a password as you type (a "show password" toggle) is an ordinary text field to macOS, so Sandalphon treats
+  it like any other; turn Sandalphon off in apps where you type secrets in the open.
 - It contains no analytics, telemetry or crash reporting.
 
 ## Reporting a vulnerability

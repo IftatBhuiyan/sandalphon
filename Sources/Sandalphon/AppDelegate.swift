@@ -212,7 +212,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     /// Right-click › Services › Fix Typos with Sandalphon: replaces the selection with a corrected copy.
     @objc func fixTypos(_ pboard: NSPasteboard, userData: String, error: AutoreleasingUnsafeMutablePointer<NSString>) {
         guard let text = pboard.string(forType: .string) else { return }
-        let fixed = state.controller.fixTypos(in: text)
+        guard let fixed = state.controller.fixTypos(in: text) else {
+            error.pointee = "Sandalphon could not fix this selection. It handles up to \(Controller.serviceLimit.formatted()) characters at a time." as NSString
+            return
+        }
         pboard.clearContents()
         pboard.setString(fixed, forType: .string)
     }
