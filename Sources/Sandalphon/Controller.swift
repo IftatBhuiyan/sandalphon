@@ -53,6 +53,9 @@ final class Controller {
     private var handsOff = false          // secure or search field
     private var singleLine = false
     private var shortcuts: [String: String] = [:]
+    /// Receives a copy of the recent corrections (main thread) whenever they change. Memory only.
+    var onHistory: (([TypingSession.Correction]) -> Void)?
+    private var historyVersionSent = -1
     /// We started typing without knowing what is in the field; keep trying to find out between keys.
     private var blind = false
     private var generation: UInt64 = 0
@@ -226,6 +229,13 @@ final class Controller {
             if !picking { endSelectionMode() }
         }
 
+        // Control-Option-Z changes the most recent correction back, wherever the caret has got to since.
+        if code == kVK_ANSI_Z, flags.contains(.maskControl), flags.contains(.maskAlternate), !flags.contains(.maskCommand),
+           !flags.contains(.maskShift) {
+            guard session.latestRevertible != nil else { return pass }
+            undoCorrection(nil)
+            return nil
+        }
         if flags.contains(.maskCommand) || flags.contains(.maskControl) {
             if flags.contains(.maskControl), !flags.contains(.maskCommand), isPanelShown,
                let i = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3].firstIndex(of: code), i < currentItems.count {
@@ -460,6 +470,58 @@ final class Controller {
         if edit.repostKey, let original { post(original.copy()) }
     }
 
+    // MARK: - Undo from anywhere
+
+    /// Hands the main thread a copy of the recent corrections if they changed.
+    private func publishHistory() {
+        guard let session, let onHistory else { return }
+        // Entries also drop out of reach as typing goes on, so that counts as a change too.
+        let reachable = session.history.filter { session.canRevertInPlace($0.id) }.count
+        let version = session.historyVersion &* 16 &+ reachable
+        guard version != historyVersionSent else { return }
+        historyVersionSent = version
+        // Entries too far back to change in place are offered as "don't correct again" only.
+        let copy = session.history.map { c in session.canRevertInPlace(c.id) ? c : c.detached() }
+        DispatchQueue.main.async { onHistory(copy) }
+    }
+
+    /// From the menu: change correction `id` back (or, if it can no longer be found, stop making it).
+    func revertFromMenu(_ id: Int) {
+        // Let the menu close and the app get its keys back first.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.onKeyThread { self.undoCorrection(id) }
+        }
+    }
+
+    /// Changes a correction back in place, but only after checking that the field still ends with exactly
+    /// the text the session expects; otherwise nothing is typed.
+    private func undoCorrection(_ id: Int?) {
+        guard let session else { return }
+        guard let entryID = id ?? session.latestRevertible else { return }
+        guard let fullTail = session.revertTail(entryID) else {
+            _ = session.revert(entryID) // can't be found safely any more: remembered, nothing typed
+            publishHistory()
+            return
+        }
+        let tail = fullTail.replacingOccurrences(of: "\u{2019}", with: "'")
+        let gen = generation
+        axQueue.async {
+            let info = self.reader.read()
+            self.onKeyThread {
+                guard gen == self.generation, let session = self.session else { return }
+                let seen = info?.textBefore?.replacingOccurrences(of: "\u{2019}", with: "'")
+                    .replacingOccurrences(of: "\u{00A0}", with: " ")
+                guard info?.selectionLength == 0, let seen, seen.hasSuffix(tail) else {
+                    NSSound.beep() // the field is not what we think it is: change nothing
+                    return
+                }
+                self.generation &+= 1
+                if let fix = session.revert(entryID) { self.inject(fix) }
+                self.publishHistory()
+            }
+        }
+    }
+
     /// Two spaces after a word become ". ", but only once the field is confirmed to end that way (macOS
     /// does the same thing itself in some apps, and then there is nothing left for us to do).
     private func checkDoubleSpace() {
@@ -488,6 +550,7 @@ final class Controller {
         blind = false
         session?.eager = false
         session?.reset()
+        publishHistory()
         hidePanel()
         requestSeed()
     }
@@ -526,6 +589,7 @@ final class Controller {
             guard let session else { return }
             session.updateSuggestions()
             publish()
+            publishHistory()
             verify(generation: generation, attempt: 0)
         }
     }

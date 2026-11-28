@@ -43,12 +43,18 @@ final class AppState: ObservableObject {
     @Published var automaticUpdates = true
     /// Text shortcuts, saved to `ShortcutStore.url` whenever they change.
     @Published var shortcuts: [Shortcut] = ShortcutStore.load()
+    /// Recent corrections, for the menu. Memory only; never saved or logged.
+    @Published var corrections: [TypingSession.Correction] = []
     /// Whether the "star on GitHub" note on the General page has been hidden. Kept on this Mac only.
     @Published var starNoteHidden = UserDefaults.standard.bool(forKey: "starNoteHidden")
     static let repositoryURL = URL(string: "https://github.com/IftatBhuiyan/sandalphon")!
 
     let panel = SuggestionPanel()
-    lazy var controller = Controller(panel: panel)
+    lazy var controller: Controller = {
+        let c = Controller(panel: panel)
+        c.onHistory = { [weak self] list in self?.corrections = list }
+        return c
+    }()
     private var tapRunning = false
     private var engineLoading = false
     private let defaults = UserDefaults.standard

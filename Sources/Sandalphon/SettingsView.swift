@@ -367,6 +367,7 @@ private struct TypingPane: View {
 
             Section("Keys") {
                 LabeledContent("Undo a correction, straight after it") { Keys("Delete") }
+                LabeledContent("Undo the latest correction, from anywhere") { Keys("⌃", "⌥", "Z") }
                 if state.settings.mode != .never {
                     LabeledContent("Show suggestions for the word at the caret") { Keys("⌥", "Esc") }
                     LabeledContent("Pick a suggestion") { Keys("⌃1", "⌃2", "⌃3") }

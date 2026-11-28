@@ -116,6 +116,59 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(s.simulate(typing: ";addr "), "1 Infinite Loop Cupertino ")
     }
 
+    /// Applies a change to an earlier part of `buffer`, as the app does with arrow keys.
+    private func apply(_ fix: TypingSession.RetroFix, to buffer: inout String) {
+        var chars = Array(buffer)
+        let end = chars.count - fix.back
+        chars.replaceSubrange((end - fix.deleteCount)..<end, with: Array(fix.insert))
+        buffer = String(chars)
+    }
+
+    func testUndoFromAnywhere() {
+        let s = session()
+        s.capitalizeSentences = false
+        var text = s.simulate(typing: "teh cat sat on teh mat and then ")
+        XCTAssertEqual(text, "the cat sat on the mat and then ")
+        XCTAssertEqual(s.history.map(\.original), ["teh", "teh"])
+        // The most recent correction goes back, even though more was typed after it.
+        guard let fix = s.revert() else { return XCTFail("nothing to revert") }
+        apply(fix, to: &text)
+        XCTAssertEqual(text, "the cat sat on teh mat and then ")
+        XCTAssertTrue(s.engine.user.keep.contains("teh"))
+        // An older one, by id; the history shrinks as entries are used.
+        guard let first = s.history.first, let fix2 = s.revert(first.id) else { return XCTFail("no older entry") }
+        apply(fix2, to: &text)
+        XCTAssertEqual(text, "teh cat sat on teh mat and then ")
+        XCTAssertTrue(s.history.isEmpty)
+        XCTAssertNil(s.revert())
+    }
+
+    func testUndoHistoryLimitsAndCaretMoves() {
+        let s = session()
+        s.capitalizeSentences = false
+        _ = s.simulate(typing: String(repeating: "teh ", count: 14))
+        XCTAssertEqual(s.history.count, TypingSession.historyLimit)
+        // Sentence-start capitals are not listed.
+        let t = session()
+        _ = t.simulate(typing: "hello there. how are you ")
+        XCTAssertTrue(t.history.isEmpty)
+        // Once the caret moves, entries can no longer be changed in place, only remembered.
+        let u = session()
+        u.capitalizeSentences = false
+        _ = u.simulate(typing: "teh end ")
+        u.reset()
+        XCTAssertEqual(u.history.first?.inPlace, false)
+        XCTAssertNil(u.revert(u.history.first?.id))
+        XCTAssertTrue(u.engine.user.keep.contains("teh"))
+        // A correction more than `revertReach` characters back is not changed in place, only remembered.
+        let v = session()
+        v.capitalizeSentences = false
+        _ = v.simulate(typing: "teh " + String(repeating: "and so on ", count: 20))
+        XCTAssertNil(v.latestRevertible)
+        XCTAssertNil(v.revert(v.history.first?.id))
+        XCTAssertTrue(v.engine.user.keep.contains("teh"))
+    }
+
     func testLeavesGoodTextAlone() {
         let text = "The quick brown fox jumps over the lazy dog. I think we should meet at noon, it's fine. "
         XCTAssertEqual(type(text), text)
