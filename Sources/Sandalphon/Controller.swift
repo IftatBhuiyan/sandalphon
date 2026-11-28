@@ -52,6 +52,7 @@ final class Controller {
     private var appExcluded = false
     private var handsOff = false          // secure or search field, or a field of an excluded app
     private var lastFocusCheck: TimeInterval = 0
+    private var excludedOwner = false      // the focused field belongs to an excluded app (a panel)
     private var singleLine = false
     private var shortcuts: [String: String] = [:]
     /// Receives a copy of the recent corrections (main thread) whenever they change. Memory only.
@@ -576,6 +577,11 @@ final class Controller {
         axQueue.asyncAfter(deadline: .now() + delay) {
             let info = self.reader.read()
             self.onKeyThread {
+                // While hands-off, a newer key must not stop us noticing that focus has moved to a normal field.
+                if gen != self.generation, self.handsOff, info != nil {
+                    self.noteField(info)
+                    if !self.handsOff { self.session?.reset() } // start afresh, reading the field on the next key
+                }
                 guard gen == self.generation, let session = self.session else { return }
                 self.noteField(info)
                 if self.handsOff { return }
@@ -589,7 +595,11 @@ final class Controller {
     }
 
     private func noteField(_ info: FocusInfo?) {
-        handsOff = info.map { $0.isSecure || $0.isSearch || settings.isExcluded($0.ownerBundleID) } ?? false
+        // A failed read says nothing about where focus is; inside an excluded app's panel, stay out until a
+        // read shows focus has left it.
+        if info == nil && excludedOwner { return }
+        excludedOwner = info.map { settings.isExcluded($0.ownerBundleID) } ?? false
+        handsOff = excludedOwner || (info.map { $0.isSecure || $0.isSearch } ?? false)
         singleLine = info?.isSingleLine ?? false
         session?.capitalizeFieldStart = !singleLine
         session?.multiline = !singleLine

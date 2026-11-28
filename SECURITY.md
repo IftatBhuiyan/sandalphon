@@ -11,8 +11,8 @@ the most important thing about it.
   off in Settings, and updates are verified with an EdDSA signature before they are installed.
 - It learns words and short phrases (up to three words) you use more than once and stores those counts in
   `~/Library/Application Support/Sandalphon/user.json`, readable only by your account and excluded from Time
-  Machine. A word or phrase typed only once is not saved. The file also lists the words whose correction you
-  undid, so they are not corrected again. You can inspect or erase it from Settings › Privacy.
+  Machine. A word or phrase typed only once is not saved, with one exception: when you undo a
+  correction, the word you typed is listed so it is not corrected again. You can inspect or erase it from Settings › Privacy.
 - Text shortcuts you create in Settings › Shortcuts are stored in
   `~/Library/Application Support/Sandalphon/shortcuts.json`, readable only by your account. They are only what
   you entered there, never anything typed elsewhere, and can be deleted from Settings › Privacy.
