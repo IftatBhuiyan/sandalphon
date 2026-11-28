@@ -4,20 +4,27 @@ All notable changes to Sandalphon are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-11-28
+
+### Added
+- Wrong-but-real words are put right from the words around them: *their/there/they're*, *your/you're*,
+  *its/it's*, *then/than*, *loose/lose*, *to/too*, *affect/effect*, *who's/whose*, *were/where/we're*. It waits
+  for two more words and acts only on strong evidence; on unseen text it changed 7 of about 73,000 correct uses,
+  all of them real mistakes.
+- Text shortcuts: type a key such as `;addr` and a space, and it becomes its text. Add, edit and remove them in
+  Settings › Shortcuts; they are kept in one file on your Mac. Delete straight after puts the key back.
+- Undo from anywhere: ⌃⌥Z puts back the latest correction even after you have kept typing, and the menu bar
+  lists the last ten under Recent Corrections. The list is kept in memory only.
+- Install with Homebrew: `brew install --cask iftatbhuiyan/tap/sandalphon`.
+- A browser demo of the engine, compiled to WebAssembly (`scripts/build-web.sh`, docs/WEB.md).
+- With the diagnostics log on, each key press records where it came from (a keyboard or software that types),
+  never which key.
 
 ### Changed
+- A clearer settings window: setup comes first and disappears once done, each switch has a one-line
+  explanation, related settings are grouped, keys are shown as keycaps, and the other pages say when
+  Accessibility access is still missing.
 - The menu bar icon is now the wing and text cursor from the app icon.
-
-### Added
-- With the diagnostics log on, each key press records where it came from (a keyboard or software that types),
-  never which key, to help with reports of typing that is not corrected.
-
-### Added
-- Install with Homebrew: `brew install --cask iftatbhuiyan/tap/sandalphon`.
-
-### Added
-- A browser demo: the engine compiled to WebAssembly (`scripts/build-web.sh`, docs/WEB.md).
 
 ## [1.1.0] - 2026-11-27
 
