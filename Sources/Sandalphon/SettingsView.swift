@@ -15,6 +15,7 @@ struct MainView: View {
                 switch state.pane {
                 case .overview: OverviewPane(state: state)
                 case .typing: TypingPane(state: state)
+                case .shortcuts: ShortcutsPane(state: state)
                 case .apps: AppsPane(state: state)
                 case .privacy: PrivacyPane(state: state)
                 }
@@ -301,11 +302,125 @@ private struct AppsPane: View {
     }
 }
 
+// MARK: - Shortcuts
+
+private struct ShortcutsPane: View {
+    @ObservedObject var state: AppState
+    @State private var editing: Shortcut?
+    @State private var selection: Shortcut.ID?
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Type a shortcut on its own, then a space or punctuation, and it is replaced with its text. Press Delete straight after to put the shortcut back.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Section {
+                if state.shortcuts.isEmpty {
+                    Text("No shortcuts yet. For example, ;addr for your address.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(state.shortcuts) { s in
+                        HStack(alignment: .firstTextBaseline, spacing: 14) {
+                            Text(s.key)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: 110, alignment: .leading)
+                            Text(s.text.replacingOccurrences(of: "\n", with: " ⏎ "))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Edit") { editing = s }
+                                .buttonStyle(.borderless)
+                            Button {
+                                state.updateShortcuts(state.shortcuts.filter { $0.id != s.id })
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove \(s.key)")
+                            .accessibilityLabel("Remove \(s.key)")
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) { editing = s }
+                    }
+                }
+                Button("Add Shortcut…") { editing = Shortcut(key: "", text: "") }
+            }
+            Section {
+                Text("Kept in one file on this Mac and never sent anywhere.")
+                    .foregroundStyle(.secondary)
+                Button("Show File in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([ShortcutStore.url])
+                }
+                .disabled(state.shortcuts.isEmpty)
+            }
+        }
+        .formStyle(.grouped)
+        .sheet(item: $editing) { s in
+            ShortcutEditor(shortcut: s, takenKeys: state.shortcuts.filter { $0.id != s.id }.map(\.key)) { saved in
+                var list = state.shortcuts
+                if let i = list.firstIndex(where: { $0.id == saved.id }) { list[i] = saved } else { list.append(saved) }
+                state.updateShortcuts(list)
+            }
+        }
+    }
+}
+
+private struct ShortcutEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var shortcut: Shortcut
+    let takenKeys: [String]
+    let save: (Shortcut) -> Void
+
+    private var problem: String? { ShortcutStore.problem(with: shortcut.key, others: takenKeys) }
+    private var looksLikeWord: Bool { !shortcut.key.isEmpty && shortcut.key.allSatisfy(\.isLetter) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(takenKeys.count == 0 && shortcut.key.isEmpty ? "New Shortcut" : "Shortcut")
+                .font(.headline)
+            LabeledContent("Shortcut") {
+                TextField("", text: $shortcut.key, prompt: Text(";addr"))
+                    .font(.system(.body, design: .monospaced))
+                    .frame(width: 200)
+            }
+            if let problem, !shortcut.key.isEmpty {
+                Text(problem).font(.callout).foregroundStyle(.red)
+            } else if looksLikeWord {
+                Text("If you ever type “\(shortcut.key)” as a word, it will be expanded. Starting with a symbol, like ;\(shortcut.key), avoids that.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Text").font(.callout).foregroundStyle(.secondary)
+            TextEditor(text: $shortcut.text)
+                .font(.body)
+                .frame(minHeight: 110)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Save") {
+                    save(shortcut)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(problem != nil || shortcut.text.isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+    }
+}
+
 // MARK: - Privacy
 
 private struct PrivacyPane: View {
     @ObservedObject var state: AppState
     @State private var confirming = false
+    @State private var confirmingShortcuts = false
 
     var body: some View {
         Form {
@@ -313,6 +428,12 @@ private struct PrivacyPane: View {
                 Label("Everything happens on this Mac. Nothing you type is ever sent anywhere. The only thing Sandalphon uses the network for is checking GitHub for a newer version, which you can switch off on the Overview page. There are no analytics, no usage counts and no crash reports.", systemImage: "lock")
                 Label("It never sees password fields: macOS blocks them for every app.", systemImage: "key")
                 Label("It remembers words and short phrases you use often, so suggestions fit how you write. It does not keep what you wrote.", systemImage: "brain")
+                Label("Text shortcuts are kept in their own file, containing only what you entered in Settings › Shortcuts.", systemImage: "text.badge.plus")
+            }
+            Section("Text shortcuts") {
+                LabeledContent("Shortcuts", value: "\(state.shortcuts.count)")
+                Button("Delete All Shortcuts…", role: .destructive) { confirmingShortcuts = true }
+                    .disabled(state.shortcuts.isEmpty)
             }
             Section("Learned from you") {
                 LabeledContent("Words learned", value: "\(state.learnedWords)")
@@ -334,6 +455,11 @@ private struct PrivacyPane: View {
             Button("Forget Everything", role: .destructive) { state.forgetLearned() }
         } message: {
             Text("Learned words, phrases and the corrections you undid will be erased. This cannot be undone.")
+        }
+        .confirmationDialog("Delete all your text shortcuts?", isPresented: $confirmingShortcuts) {
+            Button("Delete All Shortcuts", role: .destructive) { state.updateShortcuts([]) }
+        } message: {
+            Text("Their file is removed. This cannot be undone.")
         }
     }
 }

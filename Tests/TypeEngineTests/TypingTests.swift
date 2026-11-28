@@ -85,6 +85,25 @@ final class TypingTests: XCTestCase {
         XCTAssertEqual(full(fine), fine)
     }
 
+    func testTextShortcuts() {
+        let s = session()
+        s.capitalizeSentences = false
+        s.shortcuts = [";addr": "1 Infinite Loop\nCupertino", "omw": "on my way", "Sig": "Best, Sam"]
+        // Expands on a space or punctuation, and the key that ended it still arrives.
+        XCTAssertEqual(s.simulate(typing: "send it to ;addr please "), "send it to 1 Infinite Loop\nCupertino please ")
+        XCTAssertEqual(s.simulate(typing: "omw, see you "), "on my way, see you ")
+        // Only the exact key, on its own: not inside a word, not a different case.
+        XCTAssertEqual(s.simulate(typing: "xomw sig "), "xomw sig ")
+        // Backspace straight after puts the key back as typed (as it does for a correction), it is not
+        // expanded again, and it is not learned as a word.
+        XCTAssertEqual(s.simulate(typing: "omw \u{8}"), "omw ")
+        XCTAssertEqual(s.simulate(typing: "omw \u{8}now "), "omw now ")
+        XCTAssertFalse(s.engine.user.keep.contains("omw"))
+        // In a single-line field a newline in the text becomes a space.
+        s.multiline = false
+        XCTAssertEqual(s.simulate(typing: ";addr "), "1 Infinite Loop Cupertino ")
+    }
+
     func testLeavesGoodTextAlone() {
         let text = "The quick brown fox jumps over the lazy dog. I think we should meet at noon, it's fine. "
         XCTAssertEqual(type(text), text)
