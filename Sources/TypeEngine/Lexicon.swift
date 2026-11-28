@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 /// Letters are stored as codes 0...25 (a-z) and 26 (apostrophe).
 let apostropheCode: UInt8 = 26

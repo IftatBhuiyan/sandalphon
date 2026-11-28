@@ -42,7 +42,13 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
 
 ## Install
 
-1. Download `Sandalphon-x.y.z.dmg` from the [latest release](https://github.com/IftatBhuiyan/sandalphon/releases/latest)
+1. Install with [Homebrew](https://brew.sh):
+
+   ```sh
+   brew install --cask iftatbhuiyan/tap/sandalphon
+   ```
+
+   or download `Sandalphon-x.y.z.dmg` from the [latest release](https://github.com/IftatBhuiyan/sandalphon/releases/latest)
    and drag Sandalphon to Applications.
 2. Open it and follow the setup window: allow **Accessibility** access (macOS requires this for any app that
    reads and corrects typing), and switch off the built-in autocorrect so the two do not fight.

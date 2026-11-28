@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 public struct Suggestion: Equatable {
     /// Text to put in place of the word being typed (or to insert, for a next-word prediction).
@@ -540,7 +544,11 @@ public final class Engine {
         let lower = normalize(word)
         guard let t = encode(lower) else { return [] }
         return corrections(lower: lower, t: t, ctx: makeContext(context)).prefix(6).map {
+            #if os(WASI)
+            "\($0.key) score=\($0.score) cost=\($0.cost)"
+            #else
             String(format: "%@ score=%.2f cost=%.2f", $0.key, $0.score, $0.cost)
+            #endif
         }
     }
 
