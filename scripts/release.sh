@@ -47,7 +47,8 @@ XML
 echo "wrote build/appcast.xml"
 
 if [[ $DRY == 1 ]]; then echo "dry run: not tagging or publishing"; exit 0; fi
-git tag -a "$TAG" -m "Sandalphon $VERSION"
+# Safe to run again if publishing failed after the tag was pushed.
+git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git tag -a "$TAG" -m "Sandalphon $VERSION"
 git push origin "$TAG"
 # A copy under a fixed name, so the website can link to releases/latest/download/Sandalphon.dmg.
 cp "$DMG" build/Sandalphon.dmg

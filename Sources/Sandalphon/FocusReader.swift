@@ -65,7 +65,8 @@ final class FocusReader {
 
     /// Accessibility uses a top-left origin on the primary display; AppKit uses bottom-left.
     private func flipped(_ r: CGRect) -> CGRect {
-        let height = NSScreen.screens.first?.frame.height ?? 0
+        // The primary display's height; CoreGraphics, unlike NSScreen, is safe off the main thread.
+        let height = CGDisplayBounds(CGMainDisplayID()).height
         return CGRect(x: r.minX, y: height - r.maxY, width: r.width, height: r.height)
     }
 

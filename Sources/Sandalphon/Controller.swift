@@ -476,12 +476,12 @@ final class Controller {
     private func publishHistory() {
         guard let session, let onHistory else { return }
         // Entries also drop out of reach as typing goes on, so that counts as a change too.
-        let reachable = session.history.filter { session.canRevertInPlace($0.id) }.count
-        let version = session.historyVersion &* 16 &+ reachable
+        let reachable = session.revertibleIDs()
+        let version = session.historyVersion &* 16 &+ reachable.count
         guard version != historyVersionSent else { return }
         historyVersionSent = version
         // Entries too far back to change in place are offered as "don't correct again" only.
-        let copy = session.history.map { c in session.canRevertInPlace(c.id) ? c : c.detached() }
+        let copy = session.history.map { c in reachable.contains(c.id) ? c : c.detached() }
         DispatchQueue.main.async { onHistory(copy) }
     }
 
@@ -560,6 +560,8 @@ final class Controller {
         guard active else { return }
         let gen = generation
         axQueue.asyncAfter(deadline: .now() + delay) {
+            // A key has arrived since: this read would be thrown away, so do not queue it ahead of the next.
+            guard gen == self.generation else { return }
             let info = self.reader.read()
             self.onKeyThread {
                 guard gen == self.generation, let session = self.session else { return }

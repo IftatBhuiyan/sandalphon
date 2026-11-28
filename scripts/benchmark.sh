@@ -7,9 +7,10 @@ cd "$(dirname "$0")/.."
 CACHE=.cache/benchmark
 mkdir -p "$CACHE"
 for f in spell-testset1.txt spell-testset2.txt; do
-  [[ -s "$CACHE/$f" ]] || curl -sfL -o "$CACHE/$f" "https://norvig.com/$f"
+  [[ -s "$CACHE/$f" ]] || { curl -sfL -o "$CACHE/$f.part" "https://norvig.com/$f" && mv "$CACHE/$f.part" "$CACHE/$f"; }
 done
-[[ -s "$CACHE/holbrook-tagged.dat" ]] || curl -sfL -o "$CACHE/holbrook-tagged.dat" "https://www.dcs.bbk.ac.uk/~ROGER/holbrook-tagged.dat"
+[[ -s "$CACHE/holbrook-tagged.dat" ]] || { curl -sfL -o "$CACHE/holbrook-tagged.dat.part" "https://www.dcs.bbk.ac.uk/~ROGER/holbrook-tagged.dat" \
+  && mv "$CACHE/holbrook-tagged.dat.part" "$CACHE/holbrook-tagged.dat"; }
 # Valid words the dictionary does not know: lowercase first names, and a sample of rare dictionary words.
 [[ -s "$CACHE/names_lower.txt" ]] || tr 'A-Z' 'a-z' < /usr/share/dict/propernames > "$CACHE/names_lower.txt"
 [[ -s "$CACHE/rare.txt" ]] || awk 'length($0)>=5 && /^[a-z]+$/' /usr/share/dict/words | awk 'NR%60==0' > "$CACHE/rare.txt"

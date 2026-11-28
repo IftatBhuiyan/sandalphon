@@ -482,7 +482,6 @@ public final class TypingSession {
     }
 
     /// Counts only, for diagnostics.
-    public var debugState: String { "doc=\(doc.count) spans=\(spans.count) pending=\(retroPending != nil) confirmed=\(retroConfirmed) wordStart=\(wordStart ?? -1)" }
 
     /// When a revision is waiting, the text the field must end with for it to be safe to apply.
     public var pendingRetroTail: String? {
@@ -580,14 +579,26 @@ public final class TypingSession {
     /// Whether correction `id` can still be changed back where it stands: found, and near enough to the caret.
     public func canRevertInPlace(_ id: Int) -> Bool { revertTail(id) != nil }
 
+    /// Whether `entry` still stands, unchanged and close enough to the caret, in `chars` (the run's text).
+    private func inReach(_ entry: Correction, _ chars: [Character]) -> Bool {
+        guard let start = entry.start, chars.count - start <= TypingSession.revertReach else { return false }
+        let end = start + entry.replacement.count
+        return end <= chars.count && chars[start..<end].elementsEqual(entry.replacement)
+    }
+
+    /// The corrections that can still be changed back in place, worked out in one pass over the text.
+    public func revertibleIDs() -> Set<Int> {
+        guard !history.isEmpty else { return [] }
+        let chars = Array(doc)
+        return Set(history.filter { inReach($0, chars) }.map(\.id))
+    }
+
     /// What the field must end with for correction `id` to be changed back safely: everything from the start of
     /// the corrected text to the caret. Nil when the correction cannot be changed back in place.
     public func revertTail(_ id: Int) -> String? {
         guard let entry = history.first(where: { $0.id == id }), let start = entry.start else { return nil }
         let chars = Array(doc)
-        let end = start + entry.replacement.count
-        guard end <= chars.count, String(chars[start..<end]) == entry.replacement,
-              chars.count - start <= TypingSession.revertReach else { return nil }
+        guard inReach(entry, chars) else { return nil }
         return String(chars[start...])
     }
 
@@ -701,12 +712,14 @@ public final class TypingSession {
                 ? engine.predictions(context: context).map { Suggestion(text: $0, isAutocorrect: false) }
                 : []
         } else {
-            let result = engine.analyze(typed: word, context: context, eager: eager)
-            pendingFix = result.autocorrection
             analysed = true
             if !suggestionsEnabled || suppressed {
+                // Nothing will be shown, so only the correction is needed (the same decision analyze makes).
+                pendingFix = engine.autocorrection(for: word, context: context)
                 suggestions = []
             } else {
+                let result = engine.analyze(typed: word, context: context, eager: eager)
+                pendingFix = result.autocorrection
                 suggestions = autocorrectEnabled ? result.suggestions
                     : result.suggestions.map { Suggestion(text: $0.text, isAutocorrect: false) }
             }

@@ -7,6 +7,8 @@ set -euo pipefail
 OUT="${1:?usage: scripts/build-web.sh OUT_DIR}"
 mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
 cd "$(dirname "$0")/.."
+# OUT is wiped, so refuse your home folder or anything that contains this checkout.
+if [[ "$OUT" == "$HOME" || "$PWD/" == "${OUT%/}/"* ]]; then echo "refusing to replace $OUT" >&2; exit 2; fi
 SWIFT_VERSION=6.4.3
 TOOLCHAIN="$HOME/Library/Developer/Toolchains/swift-$SWIFT_VERSION-RELEASE.xctoolchain/usr/bin"
 SDK="swift-$SWIFT_VERSION-RELEASE_wasm"
