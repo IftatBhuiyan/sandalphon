@@ -23,6 +23,9 @@ you get    I got it from the store yesterday. It's an amazing place, you should 
 - **Fixes typos when you press space.** Swapped letters, missed and doubled letters, neighbouring keys, missing
   apostrophes, missing spaces. It only changes a word when it is confident, and Backspace straight after puts
   your word back and remembers never to touch it again.
+- **Fixes the right word in the wrong place.** *Their* for *there*, *your* for *you're*, *loose* for *lose*: once the
+  words after it are typed, a word from a short list of easily confused ones is changed if the words on both sides
+  make the other one clearly right.
 - **Goes back when later words prove an earlier one wrong.** "form" is a real word, so it is left alone, until
   "the store" follows it. Sandalphon then steps back, fixes it and returns the caret while you keep typing.
 - **Capitals, punctuation and common grammar slips.** Sentence starts, names, places and acronyms (*london*,
@@ -77,7 +80,9 @@ Honest numbers, reproducible with `scripts/benchmark.sh`:
 | Work per keystroke | 0.13 ms |
 
 Where it is weak: spellings by ear that are far from the real word ("wated" for "waited") are often missed or
-changed to a nearer word; a wrong word that is itself a word ("there" for "their") is rarely caught; three- and
+changed to a nearer word; a wrong word that is itself a word is only caught for a short list of easily confused words
+(*their/there/they're*, *your/you're*, *its/it's*, *then/than*, *lose/loose*, *to/too*, *affect/effect*,
+*who's/whose*, *were/where/we're*), and only when the words around it make the right one clear; three- and
 four-letter slips are often ambiguous and are left alone; uncommon first names
 typed in lowercase are sometimes "corrected" (16% in the benchmark); and it only knows English. Capitalised
 names in the middle of a sentence are never touched.

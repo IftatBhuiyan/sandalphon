@@ -27,4 +27,6 @@ echo "rare dictionary words:  $($EVAL Data --unknown "$CACHE/rare.txt" "$@" | ta
 if [[ -n "${SANDALPHON_HELDOUT:-}" ]]; then
   echo "== Going back to fix earlier words (held-out sentences) =="
   $EVAL Data --retro "$SANDALPHON_HELDOUT" | grep -E "^correct|^planted"
+  echo "== Confusable real words (their/there, your/you're...) in held-out sentences =="
+  $EVAL Data --confusables "$SANDALPHON_HELDOUT" | tail -n +2
 fi
