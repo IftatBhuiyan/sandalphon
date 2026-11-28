@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 /// A change to make in the focused text field, expressed relative to the caret.
 public struct Edit: Equatable {
@@ -586,45 +590,57 @@ public final class TypingSession {
         return true
     }
 
+    /// Applies a pending revision of an earlier word to `buffer`, the way the app does just before the next key.
+    /// Returns whether the text changed. Exposed for hosts that keep the text themselves (the web demo).
+    @discardableResult
+    public func applyPendingRetro(to buffer: inout String) -> Bool {
+        if needsSeed { seed(textBeforeCaret: buffer) }
+        if let tail = pendingRetroTail { confirmRetro(matches: buffer.hasSuffix(tail)) }
+        guard let fix = takeRetro() else { return false }
+        var chars = Array(buffer)
+        let end = chars.count - fix.back
+        guard end - fix.deleteCount >= 0, end <= chars.count else { return false }
+        chars.replaceSubrange((end - fix.deleteCount)..<end, with: Array(fix.insert))
+        buffer = String(chars)
+        return true
+    }
+
+    /// Feeds one key to the session and applies the result to `buffer`, which holds the text before the caret.
+    /// "\u{8}" is backspace and "\t" accepts the first suggestion.
+    public func type(_ ch: Character, into buffer: inout String) {
+        applyPendingRetro(to: &buffer)
+        func apply(_ e: Edit) {
+            buffer.removeLast(min(e.deleteCount, buffer.count))
+            buffer += e.insert
+        }
+        if ch == "\u{8}" {
+            if let e = backspace() { apply(e) } else if !buffer.isEmpty { buffer.removeLast() }
+        } else if ch == "\t" && (updateSuggestions() || true) && !suggestions.isEmpty {
+            if let e = accept(0) { apply(e) }
+        } else if kind(of: ch) == .delimiter {
+            if let e = delimiter(ch) {
+                apply(e)
+                if e.repostKey { buffer.append(ch) }
+            } else {
+                buffer.append(ch)
+                if let cand = doubleSpaceCandidate, buffer.hasSuffix(cand + "  ") {
+                    buffer.removeLast(2)
+                    buffer += ". "
+                    appliedDoubleSpacePeriod()
+                }
+            }
+        } else {
+            character(ch)
+            buffer.append(ch)
+        }
+    }
+
     /// Types `text` through the session against an in-memory buffer and returns the resulting text.
     /// "\u{8}" is backspace and "\t" accepts the first suggestion. Used by tests and the eval tool.
     public func simulate(typing text: String) -> String {
         var buffer = ""
         seed(textBeforeCaret: "")
-        func apply(_ e: Edit) {
-            buffer.removeLast(min(e.deleteCount, buffer.count))
-            buffer += e.insert
-        }
-        for ch in text {
-            if needsSeed { seed(textBeforeCaret: buffer) }
-            if let tail = pendingRetroTail { confirmRetro(matches: buffer.hasSuffix(tail)) }
-            if let fix = takeRetro() {
-                var chars = Array(buffer)
-                let end = chars.count - fix.back
-                chars.replaceSubrange((end - fix.deleteCount)..<end, with: Array(fix.insert))
-                buffer = String(chars)
-            }
-            if ch == "\u{8}" {
-                if let e = backspace() { apply(e) } else if !buffer.isEmpty { buffer.removeLast() }
-            } else if ch == "\t" && (updateSuggestions() || true) && !suggestions.isEmpty {
-                if let e = accept(0) { apply(e) }
-            } else if kind(of: ch) == .delimiter {
-                if let e = delimiter(ch) {
-                    apply(e)
-                    if e.repostKey { buffer.append(ch) }
-                } else {
-                    buffer.append(ch)
-                    if let cand = doubleSpaceCandidate, buffer.hasSuffix(cand + "  ") {
-                        buffer.removeLast(2)
-                        buffer += ". "
-                        appliedDoubleSpacePeriod()
-                    }
-                }
-            } else {
-                character(ch)
-                buffer.append(ch)
-            }
-        }
+        for ch in text { type(ch, into: &buffer) }
         return buffer
     }
 }

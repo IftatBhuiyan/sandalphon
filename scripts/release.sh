@@ -53,3 +53,5 @@ git push origin "$TAG"
 cp "$DMG" build/Sandalphon.dmg
 gh release create "$TAG" "$DMG" build/Sandalphon.dmg build/appcast.xml --repo "$REPO" --title "Sandalphon $VERSION" --notes "$NOTES"
 echo "published https://github.com/$REPO/releases/tag/$TAG"
+# Homebrew. The release is already public, so a failure here must not look like a failed release.
+scripts/update-tap.sh "$VERSION" || echo "WARNING: the Homebrew tap was not updated; run scripts/update-tap.sh $VERSION" >&2

@@ -1,4 +1,8 @@
+#if os(WASI)
+import FoundationEssentials // keeps the web build small; nothing here needs more
+#else
 import Foundation
+#endif
 
 /// Costs of single typing errors, roughly in "edits". Cheaper means more likely to be a slip of the fingers.
 struct KeyboardModel {

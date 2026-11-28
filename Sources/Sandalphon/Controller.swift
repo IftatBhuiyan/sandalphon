@@ -199,6 +199,15 @@ final class Controller {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
         }
+        if Debug.enabled, type == .keyDown, event.getIntegerValueField(.eventSourceUserData) != Controller.marker {
+            // Where a key came from, never which key: enough to tell a keyboard from software that types.
+            var n = 0
+            var buffer = [UniChar](repeating: 0, count: 64)
+            event.keyboardGetUnicodeString(maxStringLength: 64, actualStringLength: &n, unicodeString: &buffer)
+            Debug.log("key zeroCode=\(event.getIntegerValueField(.keyboardEventKeycode) == 0) textLength=\(n) "
+                + "source=\(event.getIntegerValueField(.eventSourceStateID)) pid=\(event.getIntegerValueField(.eventSourceUnixProcessID)) "
+                + "keyboardType=\(event.getIntegerValueField(.keyboardEventKeyboardType)) active=\(active) handsOff=\(handsOff)")
+        }
         guard type == .keyDown, event.getIntegerValueField(.eventSourceUserData) != Controller.marker,
               active, let session else { return pass }
         generation &+= 1
